@@ -1,0 +1,5 @@
+#Build Files
+*.o
+*.mod
+*.dat
+*.out
