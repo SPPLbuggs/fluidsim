@@ -33,12 +33,12 @@ program main
   w  = 1.5e-2 / x0
   ew = 2e-2   / x0
   dt = 5e-6
-  t_fin = 150
+  t_fin = 270
   t_pr = 0d0
   t_sv = 1e-4
   t_sv0 = 1e-4
   vl = 500 / ph0
-  res = 1e7
+  res = 1e3
   rf = .False.
 
   ! Read input arguments
@@ -46,7 +46,7 @@ program main
   if (rf) rwall = .False.
 
   ! Initialize grid and arrays
-  path = 'Output/'
+  ! path = 'Output/'
   call g_init(g, nx, ny, px, py, dof, l, w, ew, trim(path))
   call lapl_init(g)
   call ptcl_init(g)
@@ -70,17 +70,33 @@ program main
     t_rk = t_rk + t2 - t1
 
     ! Solve external circuit system
-    if (g%t < 30d0) then
-      res = 1e7
-    else if (g%t < 60d0) then
-      res = 1e6
-    else if (g%t < 90d0) then
-      res = 1e5
-    else if (g%t < 120d0) then
-      res = 1e4
-    else
-      res = 1e3
-    end if
+    ! if (g%t < 30d0) then
+    !   res = 1e7
+    ! else if (g%t < 50d0) then
+    !   res = 5e6
+    ! else if (g%t < 70d0) then
+    !   res = 2e6
+    ! else if (g%t < 90d0) then
+    !   res = 1e6
+    ! else if (g%t < 110d0) then
+    !   res = 5e5
+    ! else if (g%t < 130d0) then
+    !   res = 2e5
+    ! else if (g%t < 150d0) then
+    !   res = 1e5
+    ! else if (g%t < 170d0) then
+    !   res = 5e4
+    ! else if (g%t < 190d0) then
+    !   res = 2e4
+    ! else if (g%t < 210d0) then
+    !   res = 1e4
+    ! else if (g%t < 230d0) then
+    !   res = 5e3
+    ! else if (g%t < 250d0) then
+    !   res = 2e3
+    ! else
+    !   res = 1e3
+    ! end if
 
     call circ_step(g, rf, ph, res)
 
@@ -89,7 +105,7 @@ program main
 
     ! Solve ph system
     call cpu_time(t1)
-    call lapl_solve(g, ne(:,:,1), ni(:,:,1), sig)
+    call lapl_solve(g, ne(:,:,1), ni(:,:,1), nt(:,:,1), sig)
     call cpu_time(t2)
     t_ph = t_ph + t2 - t1
 

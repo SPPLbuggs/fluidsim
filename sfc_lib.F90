@@ -35,7 +35,7 @@ contains
         Te  = get_Te(nt(i,j,1), ne(i,j,1))
         mue = get_mue(Te)
         ve  = sqrt((16d0 * e * ph0 * Te) / (3d0 * pi * me)) * t0 / x0
-        Ey  = (ph(i,j-1) - ph(i,j)) / g%dy(j-1)
+        Ey  = -sig(i)!(ph(i,j-1) - ph(i,j)) / g%dy(j-1)
 
         fluxi = a * mui * Ey * ni(i,j,1) + 0.25 * vi * ni(i,j,1)
         fluxe = (a - 1) * mue * Ey * ne(i,j,1) + 0.25 * ve * ne(i,j,1)

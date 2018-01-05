@@ -54,11 +54,11 @@ contains
     call KSPSetFromOptions(ksp, ierr)
   end subroutine
 
-  subroutine lapl_solve(g, ne, ni, nt)
+  subroutine lapl_solve(g, ne, ni, nt, sig)
     type(grid), intent(in) :: g
-    real(8), intent(in) :: ne(:,:), ni(:,:), nt(:,:)
+    real(8), intent(in) :: ne(:,:), ni(:,:), nt(:,:), sig(:)
     integer :: i, j, cols(5), rows(1), conv
-    real(8) :: b_temp(1), A_temp(5)
+    real(8) :: b_temp(1), A_temp(5), sig0
 
     ! Assemble A and b
     do j = 2, g%by+1
@@ -68,8 +68,14 @@ contains
           A_temp = 0d0
           b_temp = 0d0
 
-          call laplEqn(g, i, j, ne, ni, nt, b_temp(1))
-          call laplJ(g, i, j, ne, ni, nt, A_temp, cols)
+          if (g%type_y(i-1,j-1) == 3) then
+            sig0 = sig(i)
+          else
+            sig0 = 0d0
+          end if
+
+          call laplEqn(g, i, j, ne, ni, nt, sig0, b_temp(1))
+          call laplJ(g, i, j, ne, ni, nt, sig0, A_temp, cols)
 
           ii = g%dof
           jj = g%dof*5
@@ -116,10 +122,10 @@ contains
     ph_mi = ph
   end subroutine
 
-  subroutine laplEqn(g, i, j, ne, ni, nt, b)
+  subroutine laplEqn(g, i, j, ne, ni, nt, sig, b)
     type(grid), intent(in) :: g
     integer, intent(in)  :: i, j
-    real(8), intent(in)  :: ne(:,:), ni(:,:), nt(:,:)
+    real(8), intent(in)  :: ne(:,:), ni(:,:), nt(:,:), sig
     real(8), intent(out) :: b
     real(8) :: dfdx = 0, dfdy = 0, dflxe = 0, dflxi = 0
 
@@ -162,12 +168,12 @@ contains
       ! Right dielectric wall
       else if (g%type_y(i-1,j-1) == 3) then
         if (cyl) then
-          dfdy = (ph(i,j+1) * (g%r(j+1) + g%r(j))     &
-                 - (ph(i,j) - ph(i,j-1)) / g%dy(j-1) * (g%r(j) + g%r(j-1))) &
+          dfdy = -(sig * (g%r(j+1) + g%r(j))     &
+                 + (ph(i,j) - ph(i,j-1)) / g%dy(j-1) * (g%r(j) + g%r(j-1))) &
                  / 2d0 / g%dly(j-1) / g%r(j)
         else
-          dfdy = (ph(i,j+1) &
-                 -(ph(i,j) - ph(i,j-1)) / g%dy(j-1)) &
+          dfdy = -(sig &
+                 + (ph(i,j) - ph(i,j-1)) / g%dy(j-1)) &
                  / g%dly(j-1)
         end if
 
@@ -185,20 +191,20 @@ contains
      end if
     end if
 
-    call dFlx(g, i, j,ne, ni, nt, dflxi, dflxe)
+    call dFlx(g, i, j,ne, ni, nt, sig, dflxi, dflxe)
 
     b = dfdx + dfdy + ni(i,j) - ne(i,j) + g%dt * (dflxe - dflxi)
   end subroutine
 
-  subroutine dFlx(g, i, j, ne, ni, nt, dflxi, dflxe)
+  subroutine dFlx(g, i, j, ne, ni, nt, sig, dflxi, dflxe)
     type(grid), intent(in) :: g
     integer, intent(in) :: i, j
-    real(8), intent(in) :: ne(:,:), ni(:,:), nt(:,:)
+    real(8), intent(in) :: ne(:,:), ni(:,:), nt(:,:), sig
     real(8), intent(out) :: dflxi, dflxe
     real(8) :: flxe_x(2), flxe_y(2), flxi_x(2), flxi_y(2), &
                dfdx_e = 0, dfdy_e = 0, dfdx_i = 0, dfdy_i = 0
 
-    call flx(g, i, j, ne, ni, nt, flxe_x, flxe_y, flxi_x, flxi_y)
+    call flx(g, i, j, ne, ni, nt, sig, flxe_x, flxe_y, flxi_x, flxi_y)
 
     if (g%nx > 1) then
       dfdx_e = (flxe_x(2) - flxe_x(1)) / g%dlx(i-1)
@@ -223,10 +229,10 @@ contains
     dflxi = dfdx_i + dfdy_i
   end subroutine
 
-  subroutine flx(g, i, j, ne, ni, nt, flxe_x, flxe_y, flxi_x, flxi_y)
+  subroutine flx(g, i, j, ne, ni, nt, sig, flxe_x, flxe_y, flxi_x, flxi_y)
     type(grid), intent(in) :: g
     integer, intent(in) :: i, j
-    real(8), intent(in) :: ne(:,:), ni(:,:), nt(:,:)
+    real(8), intent(in) :: ne(:,:), ni(:,:), nt(:,:), sig
     real(8), intent(out) :: flxe_x(2), flxe_y(2), flxi_x(2), flxi_y(2)
     real(8) :: a, Te(3), mu(2), D(2), ve, Ex_pl(2), Ex_mi(2), Ey_pl(2), Ey_mi(2)
 
@@ -446,7 +452,7 @@ contains
 
         ! Dielectric Wall
         else if (g%type_y(i-1,j-1) == 3) then
-          Ey_pl(2) = ph(i,j+1)
+          Ey_pl(2) = -sig
           if (-Ey_pl(2) > 0) then
             a = 1
           else
@@ -500,10 +506,10 @@ contains
       end if
   end subroutine
 
-  subroutine laplJ(g, i, j, ne, ni, nt, A, cols)
+  subroutine laplJ(g, i, j, ne, ni, nt, sig, A, cols)
     type(grid), intent(in) :: g
     integer, intent(in)  :: i, j
-    real(8), intent(in)  :: ne(:,:), ni(:,:), nt(:,:)
+    real(8), intent(in)  :: ne(:,:), ni(:,:), nt(:,:), sig
     real(8), intent(out) :: A(:)
     integer, intent(out) :: cols(:)
     integer :: k, ac
@@ -668,7 +674,7 @@ contains
         dfyi_pl = (ac - 1) * mui * ni(i,j) / g%dy(j)
         dfye_pl = ac * mue * ne(i,j) / g%dy(j) - gam * dfyi_pl
       else if (g%type_y(i-1,j-1) == 3) then
-        if (ph(i,j+1) > ph(i,j)) then
+        if (-sig < 0d0) then
           ac = 1 ! electrons streaming into wall
         else
           ac = 0 ! ions streaming into wall

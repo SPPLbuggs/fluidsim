@@ -381,7 +381,6 @@ contains
 
         ! Flux at j + 1/2
         if (g%type_y(i-1,j-1) == 3) then
-          Ey(2) = ph(i,j+1)
           if (Ey(2) < 0d0) then
             a = 1d0 ! electrons drift
           else
@@ -394,13 +393,15 @@ contains
 
           ! Flux at j + 1/2
           fluxi_y(2) = - (1d0 - a) * mui * Ey(2) * ni(i,j,2) &
-                       + 2d5-1 * vi * ni(i,j,2)
+                       + 2.5d-1 * vi * ni(i,j,2)
 
           fluxe_y(2) = - a * mue(2) * Ey(2) * ne(i,j,2) &
-                       + 2d5-1 * ve * ne(i,j,2)
+                       + 2.5d-1 * ve * ne(i,j,2)
 
           fluxt_y(2) = - a * mut(2) * Ey(2) * nt(i,j,2) &
                        + 1d0/3d0 * ve * nt(i,j,2)
+
+          fluxm_y(2) = 2.5d-1 * vi * nm(i,j,2)
         else
           fluxi_y(2) = 0d0
           fluxe_y(2) = 0d0

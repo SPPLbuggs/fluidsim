@@ -119,7 +119,7 @@ contains
       allocate( y(g%by+2), g%dy(g%by+1), g%dly(g%by) )
       ytemp = 1.25 / float(g%ny+1)
 
-      if (.True.) then
+      if (unif) then
         do j = 1, g%by+2
           y(j) = g%w / float(g%by+1) * (g%offy + j - 1)
         end do
