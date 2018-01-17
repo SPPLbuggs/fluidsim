@@ -35,7 +35,7 @@ contains
     integer, intent(in) :: stage, order
     real(8), intent(in) :: dt, k(:,:,:), n_min
     real(8), intent(inout) :: n(:,:,:), nerr_n
-    real(8) :: err_n(g%bx+2, g%by+2), abs_tol = 1d-4, rel_tol = 1d-4
+    real(8) :: err_n(g%bx+2, g%by+2), abs_tol = 1d-2, rel_tol = 1d-2
     integer :: i,j
 
     if (order == 1) then
@@ -134,11 +134,11 @@ contains
         ! call MPI_Allreduce(MPI_In_Place, nerr_n, 1, etype, &
         !                    MPI_Max, comm, ierr)
 
-          nerr_n = sum((err_n/(abs_tol+rel_tol*abs(n(:,:,3))))**2)
-          call MPI_Allreduce(MPI_In_Place, nerr_n, 1, etype, &
-                             MPI_Sum, comm, ierr)
-          nerr_n = sqrt(nerr_n)
-        end if
+        nerr_n = sum((err_n/(abs_tol+rel_tol*abs(n(:,:,3))))**2)
+        call MPI_Allreduce(MPI_In_Place, nerr_n, 1, etype, &
+                           MPI_Sum, comm, ierr)
+        ! nerr_n = sqrt(nerr_n)
+      end if
     end if
   end subroutine
 

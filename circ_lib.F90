@@ -25,6 +25,7 @@ contains
     real(8) :: num, den, mue, Te, ve, a, temp, dr
 
     if (rf) then
+      ! Vsrc = Vmax
       if (g%t < 2.5d-1) then
         Vsrc = Vmax * sin(4 * pi * g%t)**3
       else

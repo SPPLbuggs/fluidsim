@@ -54,8 +54,9 @@ contains
     call KSPSetFromOptions(ksp, ierr)
   end subroutine
 
-  subroutine lapl_solve(g, ne, ni, nt, sig)
+  subroutine lapl_solve(g, ne, ni, nt, sig, lerr)
     type(grid), intent(in) :: g
+    integer, intent(out) :: lerr
     real(8), intent(in) :: ne(:,:), ni(:,:), nt(:,:), sig(:)
     integer :: i, j, cols(5), rows(1), conv
     real(8) :: b_temp(1), A_temp(5), sig0
@@ -91,35 +92,32 @@ contains
     call MatAssemblyBegin(A, Mat_Final_Assembly, ierr)
     call MatAssemblyEnd(A, Mat_Final_Assembly, ierr)
 
-    if (assem) call MatSetOption(A, Mat_New_Nonzero_Locations, &
-                                 PETSc_False, ierr)
+    if (assem) then
+      call MatSetOption(A, Mat_New_Nonzero_Locations, PETSc_False, ierr)
+    else
+      assem = .false.
+    end if
 
     ! Solve system
     call KSPSetOperators(ksp, A, A, ierr)
     call KSPSolve(ksp, b, b, ierr)
     call KSPGetConvergedReason(ksp, conv, ierr)
-    if ((myId == 0) .and. (conv < 0)) then
-      write(*,*) 'PETSc KSP diverged. Stopping'
-      call MPI_Abort(comm, 1, ierr)
-      stop
+
+    if (conv < 0) then
+      if (myId == 0) write(*,*) 'PETSc KSP diverged. Rejecting time step.'
+      lerr = 1
+    else
+      lerr = 0
+
+      do j = 2, g%by+1
+        nn = g%node(2:g%bx+1,j,1)
+        call VecGetValues(b, g%bx, nn, soln, ierr)
+        ph(2:g%bx+1,j) = ph(2:g%bx+1,j) + soln
+      end do
+
+      call comm_real(g%bx, g%by, ph)
+      ph_mi = ph
     end if
-
-    ! Update Solution
-    ! do j = 2, g%by+1
-    !   do i = 2, g%bx+1
-    !     nn = g%node(i,j,1)
-    !     call VecGetValues(b, 1, nn, b_temp, ierr)
-    !     ph(i,j) = ph(i,j) + b_temp(1)
-    !   end do
-    ! end do
-    do j = 2, g%by+1
-      nn = g%node(2:g%bx+1,j,1)
-      call VecGetValues(b, g%bx, nn, soln, ierr)
-      ph(2:g%bx+1,j) = ph(2:g%bx+1,j) + soln
-    end do
-
-    call comm_real(g%bx, g%by, ph)
-    ph_mi = ph
   end subroutine
 
   subroutine laplEqn(g, i, j, ne, ni, nt, sig, b)
@@ -261,7 +259,7 @@ contains
         Ey(2) = -(ph(i,j+1) - ph(i,j)) / g%dy(j)
       else if (g%type_y(i-1,j-1) == 1) then
         Ey(1) = -(ph(i,j) - ph(i,j-1)) / g%dy(j-1)
-        Ex(2) = 0d0
+        Ey(2) = 0d0
       else if (g%type_y(i-1,j-1) == 3) then
         Ey(1) = -(ph(i,j) - ph(i,j-1)) / g%dy(j-1)
         Ey(2) = -sig
@@ -324,21 +322,31 @@ contains
 
         ! Flux at j + 1/2
         if (g%type_y(i-1,j-1) == 3) then
-          if (Ey(2) < 0d0) then
-            a = 1d0 ! electrons drift
-          else
-            a = 0d0 ! ions drift
-          end if
+          ! if (Ey(2) < 0d0) then
+          !   a = 1d0 ! electrons drift
+          ! else
+          !   a = 0d0 ! ions drift
+          ! end if
+          !
+          ! mue(2) = get_mue(Te(2))
+          ! ve = sqrt((16d0 * e * ph0 * Te(2)) / (3d0 * pi * me)) * t0 / x0
+          !
+          ! ! Flux at j + 1/2
+          ! flxi(2) = - (1d0 - a) * mui * Ey(2) * ni(i,j) &
+          !           + 2.5d-1 * vi * ni(i,j)
+          !
+          ! flxe(2) = - a * mue(2) * Ey(2) * ne(i,j) &
+          !           + 2.5d-1 * ve * ne(i,j)
 
+          Te(2) = get_Te(nt(i,j),   ne(i,j))
           mue(2) = get_mue(Te(2))
-          ve = sqrt((16d0 * e * ph0 * Te(2)) / (3d0 * pi * me)) * t0 / x0
+          De(2) = get_De(Te(2))
 
           ! Flux at j + 1/2
-          flxi(2) = - (1d0 - a) * mui * Ey(2) * ni(i,j) &
-                    + 2.5d-1 * vi * ni(i,j)
-
-          flxe(2) = - a * mue(2) * Ey(2) * ne(i,j) &
-                    + 2.5d-1 * ve * ne(i,j)
+          call get_flux(flxi(2), Ey(2), g%dy(j),  1, mui, Di, &
+                        ni(i,j), 0d0)
+          call get_flux(flxe(2), Ey(2), g%dy(j), -1, mue(2), De(2), &
+                        ne(i,j), 0d0)
         else
           flxi(2) = 0d0
           flxe(2) = 0d0
@@ -364,6 +372,9 @@ contains
 
     b = dfdx + dfdy + ni(i,j) - ne(i,j) &
         - g%dt * (dflxi_x + dflxi_y - dflxe_x - dflxe_y)
+    if (isnan(b)) then
+      write(*,*) 'Lapl b is NaN. Proc', myId, 'loc', i, j
+    end if
   end subroutine
 
   subroutine laplJ(g, i, j, ne, ni, nt, sig, A, cols)

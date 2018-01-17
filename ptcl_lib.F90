@@ -50,8 +50,7 @@ contains
       call rk_step(g, nm, km, stage, g%dt, err_nm, 4, n_zero)
 
       if (stage == 5) then
-        err_cur = (err_ni**2 + err_ne**2 + &
-                   err_nm**2 + err_nt**2)**0.5
+        err_cur = (err_ni + err_ne + err_nm + err_nt)**0.5
         scfac = 8d-1 * err_cur**(-7d-1 / 4d0) &
                 * err_prev**( 4d-1 / 4d0)
         scfac = min(2.5d0, max(3d-1, scfac))
@@ -90,16 +89,6 @@ contains
         end if
       end if
     end do
-
-    ni(:,:,3) = ni(:,:,2)
-    ne(:,:,3) = ne(:,:,2)
-    nm(:,:,3) = nm(:,:,2)
-    nt(:,:,3) = nt(:,:,2)
-
-    ni(:,:,2) = ni(:,:,1)
-    ne(:,:,2) = ne(:,:,1)
-    nm(:,:,2) = nm(:,:,1)
-    nt(:,:,2) = nt(:,:,1)
   end subroutine
 
   subroutine ptclEqn(g, i, j, stage, ph, sig)
@@ -284,7 +273,7 @@ contains
         Ey(2) = -(ph(i,j+1) - ph(i,j)) / g%dy(j)
       else if (g%type_y(i-1,j-1) == 1) then
         Ey(1) = -(ph(i,j) - ph(i,j-1)) / g%dy(j-1)
-        Ex(2) = 0d0
+        Ey(2) = 0d0
       else if (g%type_y(i-1,j-1) == 3) then
         Ey(1) = -(ph(i,j) - ph(i,j-1)) / g%dy(j-1)
         Ey(2) = -sig(i)
@@ -381,27 +370,44 @@ contains
 
         ! Flux at j + 1/2
         if (g%type_y(i-1,j-1) == 3) then
-          if (Ey(2) < 0d0) then
-            a = 1d0 ! electrons drift
-          else
-            a = 0d0 ! ions drift
-          end if
+          ! if (Ey(2) < 0d0) then
+          !   a = 1d0 ! electrons drift
+          ! else
+          !   a = 0d0 ! ions drift
+          ! end if
+          !
+          ! mue(2) = get_mue(Te(2))
+          ! mut(2) = get_mut(Te(2))
+          ! ve = sqrt((16d0 * e * ph0 * Te(2)) / (3d0 * pi * me)) * t0 / x0
+          !
+          ! ! Flux at j + 1/2
+          ! fluxi_y(2) = - (1d0 - a) * mui * Ey(2) * ni(i,j,2) &
+          !              + 2.5d-1 * vi * ni(i,j,2)
+          !
+          ! fluxe_y(2) = - a * mue(2) * Ey(2) * ne(i,j,2) &
+          !              + 2.5d-1 * ve * ne(i,j,2)
+          !
+          ! fluxt_y(2) = - a * mut(2) * Ey(2) * nt(i,j,2) &
+          !              + 1d0/3d0 * ve * nt(i,j,2)
+          !
+          ! fluxm_y(2) = 2.5d-1 * vi * nm(i,j,2)
 
+          ! rates and coefficients
+          Te(2) = get_Te(nt(i,j,2),   ne(i,j,2))
           mue(2) = get_mue(Te(2))
+          De(2) = get_De(Te(2))
           mut(2) = get_mut(Te(2))
-          ve = sqrt((16d0 * e * ph0 * Te(2)) / (3d0 * pi * me)) * t0 / x0
+          Dt(2) = get_Dt(Te(2))
 
           ! Flux at j + 1/2
-          fluxi_y(2) = - (1d0 - a) * mui * Ey(2) * ni(i,j,2) &
-                       + 2.5d-1 * vi * ni(i,j,2)
+          call get_flux(fluxi_y(2), Ey(2), g%dy(j),  1, mui, Di, &
+                        ni(i,j,2), 0d0)
+          call get_flux(fluxe_y(2), Ey(2), g%dy(j), -1, mue(2), De(2), &
+                        ne(i,j,2), 0d0)
+          call get_flux(fluxt_y(2), Ey(2), g%dy(j), -1, mut(2), Dt(2), &
+                        nt(i,j,2), 0d0)
+          fluxm_y(2) = Dm * nm(i,j,2) / g%dy(j)
 
-          fluxe_y(2) = - a * mue(2) * Ey(2) * ne(i,j,2) &
-                       + 2.5d-1 * ve * ne(i,j,2)
-
-          fluxt_y(2) = - a * mut(2) * Ey(2) * nt(i,j,2) &
-                       + 1d0/3d0 * ve * nt(i,j,2)
-
-          fluxm_y(2) = 2.5d-1 * vi * nm(i,j,2)
         else
           fluxi_y(2) = 0d0
           fluxe_y(2) = 0d0

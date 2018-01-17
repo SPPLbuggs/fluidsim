@@ -19,21 +19,24 @@ plt.rc('figure', titlesize=big_size)
 plt.rcParams['figure.figsize'] = (4.5, 3)
 
 # Uncomment for LaTex fonts:
-#plt.rcParams['font.family'] = 'serif'
-#plt.rcParams['font.serif'] = ['Computer Modern']
-#mpl.rc('text', usetex=True)
+# plt.rcParams['font.family'] = 'serif'
+# plt.rcParams['font.serif'] = ['Computer Modern']
+# mpl.rc('text', usetex=True)
+
+# Use log time scale
+ylog = False
 
 cm_subsection = np.linspace(0.0, 1.0, 4)
 colors = [ mpl.cm.viridis(x) for x in cm_subsection ]
 
-path = 'Output'
+path = 'Output/2d_pulse_1200V'
 if len(sys.argv) > 1:
     d = sys.argv[1]
     res = sys.argv[2]
     path = 'Output/{}d_res_'.format(d) + res
 
-x = np.fromfile(path + '/meshx.dat',dtype=float)
-y = np.fromfile(path + '/meshy.dat',dtype=float)
+x = np.fromfile(path + '/meshx.dat',dtype=float) * 1e3
+y = np.fromfile(path + '/meshy.dat',dtype=float) * 1e3
 t = np.fromfile(path + '/time.dat', dtype=float)
 dt = np.fromfile(path + '/dt.dat', dtype=float)
 Id = np.fromfile(path + '/id.dat', dtype=float)
@@ -66,7 +69,6 @@ yloc = 0
 tloc = [nt/10, nt/2, -1]
 tloc[0] = np.argmin(np.abs(t-0.2))
 
-
 # Figure 1
 fig = plt.figure(figsize=(5.25,5.25))
 gs = gridspec.GridSpec(2,2)
@@ -84,7 +86,8 @@ ax1.spines['top'].set_visible(False)
 ax0.set_ylabel('Amplitude')
 ax1.set_xlabel('Position')
 ax1.set_ylabel('Time')
-ax1.set_yscale('log')
+if ylog:
+    ax1.set_yscale('log')
 
 ax0.plot(x, f1[tloc[0],yloc,:], label='{:.1f}'.format(t[tloc[0]]), color=colors[0])
 ax0.plot(x, f1[tloc[1],yloc,:], label='{:.1f}'.format(t[tloc[1]]), color=colors[1])
@@ -119,7 +122,8 @@ ax0.set_ylabel('Amplitude')
 ax0.set_yscale('log')
 ax1.set_xlabel('Position')
 ax1.set_ylabel('Time')
-ax1.set_yscale('log')
+if ylog:
+    ax1.set_yscale('log')
 
 ax0.plot(x, f2[tloc[0],yloc,:], label='{:.1f}'.format(t[tloc[0]]), color=colors[0])
 ax0.plot(x, f2[tloc[1],yloc,:], label='{:.1f}'.format(t[tloc[1]]), color=colors[1])
@@ -154,7 +158,8 @@ ax0.set_ylabel('Amplitude')
 ax0.set_yscale('log')
 ax1.set_xlabel('Position')
 ax1.set_ylabel('Time')
-ax1.set_yscale('log')
+if ylog:
+    ax1.set_yscale('log')
 
 ax0.plot(x, f3[tloc[0],yloc,:], label='{:.1f}'.format(t[tloc[0]]), color=colors[0])
 ax0.plot(x, f3[tloc[1],yloc,:], label='{:.1f}'.format(t[tloc[1]]), color=colors[1])
@@ -189,7 +194,8 @@ ax0.set_ylabel('Amplitude')
 ax0.set_yscale('log')
 ax1.set_xlabel('Position')
 ax1.set_ylabel('Time')
-ax1.set_yscale('log')
+if ylog:
+    ax1.set_yscale('log')
 
 ax0.plot(x, f4[tloc[0],yloc,:], label='{:.1f}'.format(t[tloc[0]]), color=colors[0])
 ax0.plot(x, f4[tloc[1],yloc,:], label='{:.1f}'.format(t[tloc[1]]), color=colors[1])
@@ -224,7 +230,8 @@ ax0.set_ylabel('Amplitude')
 ax0.set_yscale('log')
 ax1.set_xlabel('Position')
 ax1.set_ylabel('Time')
-ax1.set_yscale('log')
+if ylog:
+    ax1.set_yscale('log')
 
 ax0.plot(x, f5[tloc[0],yloc,:], label='{:.1f}'.format(t[tloc[0]]), color=colors[0])
 ax0.plot(x, f5[tloc[1],yloc,:], label='{:.1f}'.format(t[tloc[1]]), color=colors[1])
@@ -258,12 +265,15 @@ ax0.set_ylabel('Voltage')
 ax1.set_ylabel('Current')
 ax1.set_xlabel('Time')
 ax1.set_yscale('log')
+if ylog:
+    ax0.set_xscale('log')
+    ax1.set_xscale('log')
 
 ax0.plot(t, Vd, color=colors[0], label='Vd')
 ax1.plot(t, np.abs(Id)*1000., color=colors[1], label='Id')
 # ax0.plot(t, dt*1000., color=colors[2], label=r'$\Delta$t')
 # ax0.legend(loc='best')
-# ax0.set_ylim([3e-3,1])
+ax1.set_ylim([3e-3,3e2])
 # ax0.set_xlim([0.05,t[-1]])
 
 gs6.tight_layout(fig6, rect=[0, 0, 1, 1])
@@ -278,7 +288,8 @@ if (ny > 1):
     ax0.spines['right'].set_visible(False)
     ax0.spines['top'].set_visible(False)
 
-    im = ax0.contourf(y,x,f1[-1,:,:].T, 30)
+    # im = ax0.contourf(y,x,f1[-1,:,:].T, 30)
+    im = ax0.pcolormesh(y, x, f1[-1,:,:].T)#, shading='gouraud')
     fig.colorbar(im, cax = cbax)
     ax0.set_ylabel('X')
     ax0.set_xlabel('R')
@@ -294,7 +305,8 @@ if (ny > 1):
     ax0.spines['right'].set_visible(False)
     ax0.spines['top'].set_visible(False)
 
-    im = ax0.contourf(y,x,f2[-1,:,:].T, 30)
+    # im = ax0.contourf(y,x,f2[-1,:,:].T, 30)
+    im = ax0.pcolormesh(y, x, f2[-1,:,:].T) #, shading='gouraud')
     fig.colorbar(im, cax = cbax)
     ax0.set_ylabel('X')
     ax0.set_xlabel('R')
@@ -310,7 +322,8 @@ if (ny > 1):
     ax0.spines['right'].set_visible(False)
     ax0.spines['top'].set_visible(False)
 
-    im = ax0.contourf(y,x,f4[-1,:,:].T, 30)
+    # im = ax0.contourf(y,x,f4[-1,:,:].T, 30)
+    im = ax0.pcolormesh(y, x, f4[-1,:,:].T)#, shading='gouraud')
     fig.colorbar(im, cax = cbax)
     ax0.set_ylabel('X')
     ax0.set_xlabel('R')

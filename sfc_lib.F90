@@ -21,24 +21,35 @@ contains
     type(grid), intent(in) :: g
     real(8), intent(inout) :: ph(:,:)
     integer :: i, j
-    real(8) :: a, Te, mue, ve, Ey, fluxi, fluxe
+    real(8) :: a, Te, De, mue, Ey, fluxi, fluxe
 
     if (ry == py-1) then
       j = g%by+1
       do i = 2, g%bx + 1
-        if (ph(i,j-1) > ph(i,j)) then
-          a = 1d0 ! ions drifting
-        else
-          a = 0d0 ! electrons drifting
-        end if
+        ! if (ph(i,j-1) > ph(i,j)) then
+        !   a = 1d0 ! ions drifting
+        ! else
+        !   a = 0d0 ! electrons drifting
+        ! end if
+        !
+        ! Te  = get_Te(nt(i,j,1), ne(i,j,1))
+        ! mue = get_mue(Te)
+        ! ve  = sqrt((16d0 * e * ph0 * Te) / (3d0 * pi * me)) * t0 / x0
+        ! Ey  = -sig(i)!(ph(i,j-1) - ph(i,j)) / g%dy(j-1)
+        !
+        ! fluxi = a * mui * Ey * ni(i,j,1) + 0.25 * vi * ni(i,j,1)
+        ! fluxe = (a - 1) * mue * Ey * ne(i,j,1) + 0.25 * ve * ne(i,j,1)
 
-        Te  = get_Te(nt(i,j,1), ne(i,j,1))
+        Te = get_Te(nt(i,j,1),   ne(i,j,1))
         mue = get_mue(Te)
-        ve  = sqrt((16d0 * e * ph0 * Te) / (3d0 * pi * me)) * t0 / x0
-        Ey  = -sig(i)!(ph(i,j-1) - ph(i,j)) / g%dy(j-1)
+        De = get_De(Te)
 
-        fluxi = a * mui * Ey * ni(i,j,1) + 0.25 * vi * ni(i,j,1)
-        fluxe = (a - 1) * mue * Ey * ne(i,j,1) + 0.25 * ve * ne(i,j,1)
+        ! Flux at j + 1/2
+        call get_flux(fluxi, -sig(i), g%dy(j),  1, mui, Di, &
+                      ni(i,j,1), 0d0)
+        call get_flux(fluxe, -sig(i), g%dy(j), -1, mue, De, &
+                      ne(i,j,1), 0d0)
+
         sig(i) = sig(i) + g%dt * (fluxi - fluxe)
 
         ! sig(i) = (sig(i) + g%dt / 4d0 * (vi * ni(i,j,1) + ve * ne(i,j,1))) &

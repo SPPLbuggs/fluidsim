@@ -226,7 +226,7 @@ contains
     end if
 
     call MPI_File_Set_View(fh, dispx, etype, etype, 'native', info, ierr)
-    if (ry == 0) call MPI_File_Write(fh, x(2:g%bx+1), g%bx, etype, stat, ierr)
+    if (ry == 0) call MPI_File_Write(fh, x(2:g%bx+1) * x0, g%bx, etype, stat, ierr)
     call MPI_File_Close(fh, ierr)
 
     call MPI_File_Open(comm, path//'meshy.dat', amode,  info, fh, ierr)
@@ -237,7 +237,7 @@ contains
 
     if (g%ny > 1) then
       call MPI_File_Set_View(fh, dispy, etype, etype, 'native', info, ierr)
-      if (rx == 0) call MPI_File_Write(fh, y(2:g%by+1), g%by, etype, stat, ierr)
+      if (rx == 0) call MPI_File_Write(fh, y(2:g%by+1) * x0, g%by, etype, stat, ierr)
       call MPI_File_Close(fh, ierr)
     end if
 

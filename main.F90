@@ -7,9 +7,9 @@ program main
   implicit none
 
   type(grid) :: g
-  integer :: ts = 0, ts1, ts2, nx, ny, dof
+  integer :: i, j, ts = 0, ts1, ts2, nx, ny, dof, lerr, rIdx = 1
   real(8) :: l, w, ew, vl, res, dt, t_fin, t_pr, t_sv, t_sv0, &
-             sim_start, time1, time2, t_rk = 0, t_ph = 0, t1, t2
+             sim_start, time1, time2, t_rk = 0, t_ph = 0, t1, t2, Id_mi = 0, Vd_mi = 0
   character(80):: path
   logical :: rf
 
@@ -33,17 +33,21 @@ program main
   w  = 1.5e-2 / x0
   ew = 2e-2   / x0
   dt = 5e-6
-  t_fin = 270
+  t_fin = 1000
   t_pr = 0d0
-  t_sv = 1e-4
-  t_sv0 = 1e-4
+  t_sv = 1e-2
+  t_sv0 = 1e-2
   vl = 500 / ph0
-  res = 1e3
+  res = 1e7
   rf = .False.
 
   ! Read input arguments
   call read_in
-  if (rf) rwall = .False.
+  if (rf) then
+    rwall = .False.
+    w = 1e-2 / x0
+    ew = 1.25e-3 / x0
+  end if
 
   ! Initialize grid and arrays
   ! path = 'Output/'
@@ -56,47 +60,72 @@ program main
   g%t  = 0
   g%dt = dt
 
+  ! vl = 350 / ph0
+  ! ph(1,:) = vl
+
   do
-    ts = ts + 1
-    g%t = g%t + g%dt
     if (g%t >= t_fin) exit
 
     ! Solve ne system
     t_m = 1e9
 
-    call cpu_time(t1)
+    if (myID == 0) call cpu_time(t1)
     if (ts > 1) call ptcl_step(g, ph, sig)
-    call cpu_time(t2)
+    if (myID == 0) call cpu_time(t2)
     t_rk = t_rk + t2 - t1
 
     ! Solve external circuit system
-    ! if (g%t < 30d0) then
-    !   res = 1e7
-    ! else if (g%t < 50d0) then
-    !   res = 5e6
-    ! else if (g%t < 70d0) then
-    !   res = 2e6
-    ! else if (g%t < 90d0) then
-    !   res = 1e6
-    ! else if (g%t < 110d0) then
-    !   res = 5e5
-    ! else if (g%t < 130d0) then
-    !   res = 2e5
-    ! else if (g%t < 150d0) then
-    !   res = 1e5
-    ! else if (g%t < 170d0) then
-    !   res = 5e4
-    ! else if (g%t < 190d0) then
-    !   res = 2e4
-    ! else if (g%t < 210d0) then
-    !   res = 1e4
-    ! else if (g%t < 230d0) then
-    !   res = 5e3
-    ! else if (g%t < 250d0) then
-    !   res = 2e3
-    ! else
-    !   res = 1e3
+    ! if (.not. rf) then
+    !   if (g%t < 50d0) then
+    !     res = 1e7
+    !   else if (g%t < 100d0) then
+    !     res = 5e6
+    !   else if (g%t < 150d0) then
+    !     res = 2e6
+    !   else if (g%t < 200d0) then
+    !     res = 1e6
+    !   else if (g%t < 250d0) then
+    !     res = 5e5
+    !   else if (g%t < 300d0) then
+    !     res = 2e5
+    !   else if (g%t < 350d0) then
+    !     res = 1e5
+    !   else if (g%t < 400d0) then
+    !     res = 5e4
+    !   else if (g%t < 450d0) then
+    !     res = 2e4
+    !   else if (g%t < 500d0) then
+    !     res = 1e4
+    !   else if (g%t < 550d0) then
+    !     res = 5e3
+    !   else if (g%t < 600d0) then
+    !     res = 2e3
+    !   else
+    !     res = 1e3
+    !   end if
     ! end if
+
+    if (.not. rf) then
+      if (rIdx == 1) then
+        res = 6.3e6
+      else if (rIdx == 2) then
+        res = 2e6
+      else if (rIdx == 3) then
+        res = 6.3e5
+      else if (rIdx == 4) then
+        res = 2e5
+      else if (rIdx == 5) then
+        res = 6.3e4
+      else if (rIdx == 6) then
+        res = 2e4
+      else if (rIdx == 7) then
+        res = 6.3e3
+      else if (rIdx == 8) then
+        res = 2e3
+      else
+        exit
+      end if
+    end if
 
     call circ_step(g, rf, ph, res)
 
@@ -104,10 +133,55 @@ program main
     if (rwall) call sfc_step(g, ph)
 
     ! Solve ph system
-    call cpu_time(t1)
-    call lapl_solve(g, ne(:,:,1), ni(:,:,1), nt(:,:,1), sig)
-    call cpu_time(t2)
+    if (myID == 0) call cpu_time(t1)
+    call lapl_solve(g, ne(:,:,1), ni(:,:,1), nt(:,:,1), sig, lerr)
+    if (myID == 0) call cpu_time(t2)
     t_ph = t_ph + t2 - t1
+
+    ! Accept step
+    if (lerr == 0) then
+      ts = ts + 1
+      g%t = g%t + g%dt
+
+      ni(:,:,3) = ni(:,:,2)
+      ne(:,:,3) = ne(:,:,2)
+      nm(:,:,3) = nm(:,:,2)
+      nt(:,:,3) = nt(:,:,2)
+
+      ni(:,:,2) = ni(:,:,1)
+      ne(:,:,2) = ne(:,:,1)
+      nm(:,:,2) = nm(:,:,1)
+      nt(:,:,2) = nt(:,:,1)
+
+    ! Reject step
+    else
+      do j = 1, g%by+2
+        do i = 1, g%bx+2
+          if (isnan(ph(i,j))) &
+            write(*,*) 'NaN at ph', i, j, 'on proc', myId
+          if (isnan(ne(i,j,2))) &
+            write(*,*) 'NaN at ne', i, j, 'on proc', myId
+          if (isnan(ni(i,j,2))) &
+            write(*,*) 'NaN at ni', i, j, 'on proc', myId
+          if (isnan(nt(i,j,2))) &
+            write(*,*) 'NaN at nt', i, j, 'on proc', myId
+          if (isnan(nm(i,j,2))) &
+            write(*,*) 'NaN at nm', i, j, 'on proc', myId
+        end do
+      end do
+
+      g%dt = g%dt / 2d0
+
+      ni(:,:,1) = ni(:,:,3)
+      ne(:,:,1) = ne(:,:,3)
+      nm(:,:,1) = nm(:,:,3)
+      nt(:,:,1) = nt(:,:,3)
+
+      ni(:,:,2) = ni(:,:,3)
+      ne(:,:,2) = ne(:,:,3)
+      nm(:,:,2) = nm(:,:,3)
+      nt(:,:,2) = nt(:,:,3)
+    end if
 
     ! Print out some information
     if ((t_pr >= 1.5d0) .and. (myId == 0)) then
@@ -124,7 +198,7 @@ program main
       t_rk = 0
       t_ph = 0
 
-    else if (mod(ts,20) == 0) then
+    else if (mod(ts,1) == 0) then
       call cpu_time(time2)
       t_pr = time2 - time1
     end if
@@ -136,6 +210,13 @@ program main
       t_sv  = t_sv + t_sv0
       t_sv0 = t_sv0 * 1.01
       t_sv0 = min(t_sv0, 1d-1)
+    end if
+
+    if ((.not. rf) .and. (g%t > 2d0)) then
+      if ((abs((Id - Id_mi) / Id) .le. (g%dt * 1d-3)) .and. &
+          (abs((Vd_pl - Vd_mi) / Vd_pl) .le. (g%dt * 1d-3))) rIdx = rIdx + 1!exit
+      Id_mi = Id
+      Vd_mi = Vd_pl
     end if
   end do
 
@@ -260,16 +341,27 @@ contains
       end if
     end if
 
-    if (ny > 1) then
-        write(path,41) int(res / 10**floor(log10(res))), floor(log10(res))
+    if (.not. rf) then
+      if (ny > 1) then
+          write(path,41) int(res / 10**floor(log10(res))), floor(log10(res))
+      else
+          write(path,42) int(res / 10**floor(log10(res))), floor(log10(res))
+      end if
     else
-        write(path,42) int(res / 10**floor(log10(res))), floor(log10(res))
+      if (ny > 1) then
+          write(path,43) int(vl*ph0/10.0)*10
+      else
+          write(path,44) int(vl*ph0/10.0)*10
+      end if
     end if
+
 
     if (myId == 0) call system('mkdir '//trim(path))
 
     41 format('Output/2d_res_',i0,'e',i0,'/')
     42 format('Output/1d_res_',i0,'e',i0,'/')
+    43 format('Output/2d_pulse_',i0,'V/')
+    44 format('Output/1d_pulse_',i0,'V/')
   end subroutine
 
   subroutine writeOut
