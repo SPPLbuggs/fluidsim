@@ -29,38 +29,38 @@ ylog = False
 cm_subsection = np.linspace(0.0, 1.0, 4)
 colors = [ mpl.cm.viridis(x) for x in cm_subsection ]
 
-path = 'Output/2d_pulse_1200V'
+path = 'Output/2d_pulse_350V/'
 if len(sys.argv) > 1:
     d = sys.argv[1]
     res = sys.argv[2]
-    path = 'Output/{}d_res_'.format(d) + res
+    path = 'Output/{}d_res_'.format(d) + res + '/'
 
-x = np.fromfile(path + '/meshx.dat',dtype=float) * 1e3
-y = np.fromfile(path + '/meshy.dat',dtype=float) * 1e3
-t = np.fromfile(path + '/time.dat', dtype=float)
-dt = np.fromfile(path + '/dt.dat', dtype=float)
-Id = np.fromfile(path + '/id.dat', dtype=float)
-Vd = np.fromfile(path + '/vd.dat', dtype=float)
+x = np.fromfile(path + 'meshx.dat',dtype=float) * 1e3
+y = np.fromfile(path + 'meshy.dat',dtype=float) * 1e3
+t = np.fromfile(path + 'time.dat', dtype=float)
+dt = np.fromfile(path + 'dt.dat', dtype=float)
+Id = np.fromfile(path + 'id.dat', dtype=float)
+Vd = np.fromfile(path + 'vd.dat', dtype=float)
 
 nx = len(x)
 ny = max(len(y),1)
 nt = len(t)
 
 # Load Data
-temp = np.fromfile(path + '/f1.dat',dtype=float)
+temp = np.fromfile(path + 'f1.dat',dtype=float)
 f1 = temp.reshape([nt, ny, nx])
 
-temp = np.fromfile(path + '/f2.dat',dtype=float)
+temp = np.fromfile(path + 'f2.dat',dtype=float)
 f2 = temp.reshape([nt, ny, nx])
 
-temp = np.fromfile(path + '/f3.dat',dtype=float)
+temp = np.fromfile(path + 'f3.dat',dtype=float)
 f3 = temp.reshape([nt, ny, nx])
 
-temp = np.fromfile(path + '/f4.dat',dtype=float)
+temp = np.fromfile(path + 'f4.dat',dtype=float)
 f4 = temp.reshape([nt, ny, nx])
 f4 = f4/f2
 
-temp = np.fromfile(path + '/f5.dat',dtype=float)
+temp = np.fromfile(path + 'f5.dat',dtype=float)
 f5 = temp.reshape([nt, ny, nx])
 
 tt, xx = np.meshgrid(t,x)

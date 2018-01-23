@@ -306,79 +306,63 @@ contains
     return
   end function get_Dt
 
-  function get_k_ex2(T)
-    real(8):: get_k_ex2
-    real(8), intent(in):: T
-    real(8):: x, &
-              a1 =  -54.4513453969,  &
-              b1 =   17.1472529739,  &
-              c1 =   -1.05188982824, &
-              d1 =  -10.5053010711,  &
-              f1 =    7.51502551486, &
-              g1 =   -1.44763942525, &
-              a2 = -150.266369415,   &
-              b2 =  158.67012941,    &
-              c2 =  -85.5163470769,  &
-              d2 =   23.0655081891,  &
-              f2 =   -3.0908688844,  &
-              g2 =    0.16403226902
-
-    x = log(max(9.611d-1, min(1.57d2, T * ph0)))
-
-    if (x < log(5.667)) then
-        get_k_ex2 = exp(a1 + b1*x + c1*x**2 + d1*x**3 + f1*x**4 &
-                      + g1*x**5) * t0 / x0**3
-    else
-        get_k_ex2 = exp(a2 + b2*x + c2*x**2 + d2*x**3 + f2*x**4 &
-                      + g2*x**5) * t0 / x0**3
-    end if
-    return
-  end function get_k_ex2
-
-  function get_k_ir(T)
-    real(8):: get_k_ir
-    real(8), intent(in):: T
-    real(8):: x, &
-              a = -109.77,  &
-              b =   81.803, &
-              c =  -32.3,   &
-              d =    5.729, &
-              f =   -0.3803
-
-    x = log(max(1d0, min(1.1d2, T * ph0)))
-
-    get_k_ir = exp(a + b*x + c*x**2 + d*x**3 + f*x**4) * t0 / x0**3
-    return
-  end function get_k_ir
-
-  function get_k_ir2(T)
-    real(8):: get_k_ir2
-    real(8), intent(in):: T
-    real(8):: x, &
-              a1 = -73.27080258,   &
-              b1 = -30.1312514721, &
-              c1 = 138.743842326,  &
-              d1 = -161.378167125, &
-              f1 = 81.9325486193,  &
-              g1 = -14.9080865672, &
-              a2 = -168.925304837, &
-              b2 = 177.113452524,  &
-              c2 = -92.3047166553, &
-              d2 = 24.1814225482,  &
-              f2 = -3.15463258104, &
-              g2 = 0.16331188192
-
-    x = log(max(1.37d0, min(1.57d2, T * ph0)))
-
-    if (x < log(7.5)) then
-        get_k_ir2 = exp(a1 + b1*x + c1*x**2 + d1*x**3 + f1*x**4 &
-                      + g1*x**5) * t0 / x0**3
-    else
-        get_k_ir2 = exp(a2 + b2*x + c2*x**2 + d2*x**3 + f2*x**4 &
-                      + g2*x**5) * t0 / x0**3
-    end if
-    return
-  end function get_k_ir2
+  ! function get_k_ex(T)
+  !   real(8):: get_k_ex
+  !   real(8), intent(in):: T
+  !   real(8):: x, &
+  !             a1 =  -54.4513453969,  &
+  !             b1 =   17.1472529739,  &
+  !             c1 =   -1.05188982824, &
+  !             d1 =  -10.5053010711,  &
+  !             f1 =    7.51502551486, &
+  !             g1 =   -1.44763942525, &
+  !             a2 = -150.266369415,   &
+  !             b2 =  158.67012941,    &
+  !             c2 =  -85.5163470769,  &
+  !             d2 =   23.0655081891,  &
+  !             f2 =   -3.0908688844,  &
+  !             g2 =    0.16403226902
+  !
+  !   x = log(max(9.611d-1, min(1.57d2, T * ph0)))
+  !
+  !   if (x < log(5.667)) then
+  !       get_k_ex = exp(a1 + b1*x + c1*x**2 + d1*x**3 + f1*x**4 &
+  !                     + g1*x**5) * t0 / x0**3
+  !   else
+  !       get_k_ex = exp(a2 + b2*x + c2*x**2 + d2*x**3 + f2*x**4 &
+  !                     + g2*x**5) * t0 / x0**3
+  !   end if
+  !   return
+  ! end function get_k_ex
+  !
+  ! function get_k_ir(T)
+  !   real(8):: get_k_ir
+  !   real(8), intent(in):: T
+  !   real(8):: x, &
+  !             a1 = -73.27080258,   &
+  !             b1 = -30.1312514721, &
+  !             c1 = 138.743842326,  &
+  !             d1 = -161.378167125, &
+  !             f1 = 81.9325486193,  &
+  !             g1 = -14.9080865672, &
+  !             a2 = -168.925304837, &
+  !             b2 = 177.113452524,  &
+  !             c2 = -92.3047166553, &
+  !             d2 = 24.1814225482,  &
+  !             f2 = -3.15463258104, &
+  !             g2 = 0.16331188192
+  !
+  !   x = log(max(1.37d0, min(1.57d2, T * ph0)))
+  !
+  !   if (x < log(7.5)) then
+  !       get_k_ir = exp(a1 + b1*x + c1*x**2 + d1*x**3 + f1*x**4 &
+  !                      + g1*x**5) * t0 / x0**3
+  !   else
+  !       get_k_ir = exp(a2 + b2*x + c2*x**2 + d2*x**3 + f2*x**4 &
+  !                      + g2*x**5) * t0 / x0**3
+  !   end if
+  !   return
+  ! end function get_k_ir
 
   function get_nu(T)
     real(8):: get_nu
@@ -436,6 +420,22 @@ contains
   end function get_k_si
 
   ! old funcs
+  function get_k_ir(T)
+    real(8):: get_k_ir
+    real(8), intent(in):: T
+    real(8):: x, &
+              a = -109.77,  &
+              b =   81.803, &
+              c =  -32.3,   &
+              d =    5.729, &
+              f =   -0.3803
+
+    x = log(max(1d0, min(1.1d2, T * ph0)))
+
+    get_k_ir = exp(a + b*x + c*x**2 + d*x**3 + f*x**4) * t0 / x0**3
+    return
+  end function get_k_ir
+
   function get_k_ex(T)
     real(8):: get_k_ex
     real(8), intent(in):: T

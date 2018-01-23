@@ -74,63 +74,32 @@ program main
     if (myID == 0) call cpu_time(t2)
     t_rk = t_rk + t2 - t1
 
-    ! Solve external circuit system
     ! if (.not. rf) then
-    !   if (g%t < 50d0) then
-    !     res = 1e7
-    !   else if (g%t < 100d0) then
-    !     res = 5e6
-    !   else if (g%t < 150d0) then
+    !   if (rIdx == 1) then
+    !     res = 6.3e6
+    !   else if (rIdx == 2) then
     !     res = 2e6
-    !   else if (g%t < 200d0) then
-    !     res = 1e6
-    !   else if (g%t < 250d0) then
-    !     res = 5e5
-    !   else if (g%t < 300d0) then
+    !   else if (rIdx == 3) then
+    !     res = 6.3e5
+    !   else if (rIdx == 4) then
     !     res = 2e5
-    !   else if (g%t < 350d0) then
-    !     res = 1e5
-    !   else if (g%t < 400d0) then
-    !     res = 5e4
-    !   else if (g%t < 450d0) then
+    !   else if (rIdx == 5) then
+    !     res = 6.3e4
+    !   else if (rIdx == 6) then
     !     res = 2e4
-    !   else if (g%t < 500d0) then
-    !     res = 1e4
-    !   else if (g%t < 550d0) then
-    !     res = 5e3
-    !   else if (g%t < 600d0) then
+    !   else if (rIdx == 7) then
+    !     res = 6.3e3
+    !   else if (rIdx == 8) then
     !     res = 2e3
     !   else
-    !     res = 1e3
+    !     exit
     !   end if
     ! end if
-
-    if (.not. rf) then
-      if (rIdx == 1) then
-        res = 6.3e6
-      else if (rIdx == 2) then
-        res = 2e6
-      else if (rIdx == 3) then
-        res = 6.3e5
-      else if (rIdx == 4) then
-        res = 2e5
-      else if (rIdx == 5) then
-        res = 6.3e4
-      else if (rIdx == 6) then
-        res = 2e4
-      else if (rIdx == 7) then
-        res = 6.3e3
-      else if (rIdx == 8) then
-        res = 2e3
-      else
-        exit
-      end if
-    end if
 
     call circ_step(g, rf, ph, res)
 
     ! Solve surface charge system
-    if (rwall) call sfc_step(g, ph)
+    if (rwall) call sfc_step(g)
 
     ! Solve ph system
     if (myID == 0) call cpu_time(t1)
@@ -213,8 +182,8 @@ program main
     end if
 
     if ((.not. rf) .and. (g%t > 2d0)) then
-      if ((abs((Id - Id_mi) / Id) .le. (g%dt * 1d-3)) .and. &
-          (abs((Vd_pl - Vd_mi) / Vd_pl) .le. (g%dt * 1d-3))) rIdx = rIdx + 1!exit
+      if ((abs((Id - Id_mi) / Id) .le. (g%dt * 5d-4)) .and. &
+          (abs((Vd_pl - Vd_mi) / Vd_pl) .le. (g%dt * 5d-4))) exit!rIdx = rIdx + 1
       Id_mi = Id
       Vd_mi = Vd_pl
     end if

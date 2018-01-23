@@ -26,11 +26,12 @@ contains
 
     if (rf) then
       ! Vsrc = Vmax
-      if (g%t < 2.5d-1) then
-        Vsrc = Vmax * sin(4 * pi * g%t)**3
-      else
-        Vsrc = 0
-      end if
+      Vsrc = Vmax * cos(pi * g%t)
+      ! if (g%t < 2.5d-1) then
+      !   Vsrc = Vmax * sin(4 * pi * g%t)**3
+      ! else
+      !   Vsrc = 0
+      ! end if
     end if
 
     Res = R0 * e / (ph0 * t0)

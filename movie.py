@@ -22,7 +22,7 @@ plt.rc('figure', titlesize=big_size)
 plt.rcParams['figure.figsize'] = (4.5, 3)
 #plt.rcParams['figure.autolayout'] = True
 
-path = 'Output/2d_res_1e5/'
+path = 'Output/2d_res_2e6/'
 x = np.fromfile(path + 'meshx.dat',dtype=float)
 y = np.fromfile(path + 'meshy.dat',dtype=float)
 t = np.fromfile(path + 'time.dat', dtype=float)
@@ -46,7 +46,7 @@ def anim(i):
     tx.set_text(r'Electron Density : t = {:.2f} $\mu$s'.format(t[i]))
     im.autoscale()
 
-ani = animation.FuncAnimation(fig, anim, frames=nt, interval=150)
+ani = animation.FuncAnimation(fig, anim, frames=nt, interval=50)
 
 plt.show()
 #ani.save('figures/anim.gif', dpi = 100)
