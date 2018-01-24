@@ -53,8 +53,8 @@ for i in range(len(t)-1):
     if j == len(tgt):
         break
 
-fig = plt.figure(figsize=(5.25,5))
-gs = gridspec.GridSpec(2, 2, width_ratios=[1.0,0.05], height_ratios=[1.0,0.75])
+fig = plt.figure(figsize=(5.25,5.25))
+gs = gridspec.GridSpec(2, 2, width_ratios=[1.0,0.05])#, height_ratios=[1.0,0.75])
 ax0 = fig.add_subplot(gs[0,0])
 ax1 = fig.add_subplot(gs[1,0])
 axc = fig.add_subplot(gs[0,1])
@@ -98,7 +98,6 @@ ax1.legend(bbox_to_anchor=(1.0,0.75), frameon=False)#bbox_to_anchor = (1.3, 0.55
 
 gs.tight_layout(fig, rect=[0, 0, 1, 1])
 plt.savefig('Figures/2dAC.eps', dpi = 300)
-
 
 ## Figure 2:: IV
 fig = plt.figure(figsize=(5,3))
