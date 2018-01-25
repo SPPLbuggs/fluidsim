@@ -1,5 +1,7 @@
 module ptcl_lib
   use ptcl_props
+  use circ_lib
+  use sfc_lib
   implicit none
 
   real(8), allocatable :: ki(:,:,:), ni(:,:,:), &
@@ -26,9 +28,9 @@ contains
     nm = n_init
   end subroutine
 
-  subroutine ptcl_step(g, ph, sig)
+  subroutine ptcl_step(g, ph)
     type(grid), intent(inout) :: g
-    real(8), intent(in) :: ph(:,:), sig(:)
+    real(8), intent(inout) :: ph(:,:)
     integer :: i, j, stage
     real(8) :: err_cur, scfac, err_ni, err_ne, err_nt, err_nm
 
@@ -40,9 +42,13 @@ contains
       ! Update particle densities
       do j = 2, g%by+1
         do i = 2, g%bx+1
-          call ptclEqn(g, i, j, stage, ph, sig)
+          call ptclEqn(g, i, j, stage, ph)
         end do
       end do
+
+      call circ_step(g, stage, ph, ni(:,:,2), ne(:,:,2), nt(:,:,2))
+
+      if (rwall) call sfc_step(g, stage, ni(:,:,2), ne(:,:,2), nt(:,:,2))
 
       call rk_step(g, ni, ki, stage, g%dt, err_ni, 4, n_zero)
       call rk_step(g, ne, ke, stage, g%dt, err_ne, 4, n_zero)
@@ -86,15 +92,21 @@ contains
           ne(:,:,2) = ne(:,:,3)
           nm(:,:,2) = nm(:,:,3)
           nt(:,:,2) = nt(:,:,3)
+
+          Vd_pl = Vd_or
+          Vd_mi = Vd_or
+
+          sig_pl = sig_or
+          sig_mi = sig_or
         end if
       end if
     end do
   end subroutine
 
-  subroutine ptclEqn(g, i, j, stage, ph, sig)
+  subroutine ptclEqn(g, i, j, stage, ph)
     type(grid), intent(in) :: g
     integer, intent(in)    :: i, j, stage
-    real(8), intent(in)    :: ph(:,:), sig(:)
+    real(8), intent(in)    :: ph(:,:)
     real(8) :: a, Ex(2) = 0, Ey(2) = 0, Te(3), mue(2), mut(2), De(2), Dt(2), &
                dfluxi_dx = 0, dfluxi_dy = 0, fluxi_x(2) = 0, fluxi_y(2) = 0, &
                dfluxe_dx = 0, dfluxe_dy = 0, fluxe_x(2) = 0, fluxe_y(2) = 0, &
@@ -276,7 +288,7 @@ contains
         Ey(2) = 0d0
       else if (g%type_y(i-1,j-1) == 3) then
         Ey(1) = -(ph(i,j) - ph(i,j-1)) / g%dy(j-1)
-        Ey(2) = -sig(i)
+        Ey(2) = -sig_mi(i)
       else
         Ey(1) = -(ph(i,j) - ph(i,j-1)) / g%dy(j-1)
         Ey(2) = -(ph(i,j+1) - ph(i,j)) / g%dy(j)
@@ -370,28 +382,6 @@ contains
 
         ! Flux at j + 1/2
         if (g%type_y(i-1,j-1) == 3) then
-          ! if (Ey(2) < 0d0) then
-          !   a = 1d0 ! electrons drift
-          ! else
-          !   a = 0d0 ! ions drift
-          ! end if
-          !
-          ! mue(2) = get_mue(Te(2))
-          ! mut(2) = get_mut(Te(2))
-          ! ve = sqrt((16d0 * e * ph0 * Te(2)) / (3d0 * pi * me)) * t0 / x0
-          !
-          ! ! Flux at j + 1/2
-          ! fluxi_y(2) = - (1d0 - a) * mui * Ey(2) * ni(i,j,2) &
-          !              + 2.5d-1 * vi * ni(i,j,2)
-          !
-          ! fluxe_y(2) = - a * mue(2) * Ey(2) * ne(i,j,2) &
-          !              + 2.5d-1 * ve * ne(i,j,2)
-          !
-          ! fluxt_y(2) = - a * mut(2) * Ey(2) * nt(i,j,2) &
-          !              + 1d0/3d0 * ve * nt(i,j,2)
-          !
-          ! fluxm_y(2) = 2.5d-1 * vi * nm(i,j,2)
-
           ! rates and coefficients
           Te(2) = get_Te(nt(i,j,2),   ne(i,j,2))
           mue(2) = get_mue(Te(2))

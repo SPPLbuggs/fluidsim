@@ -29,7 +29,7 @@ ylog = False
 cm_subsection = np.linspace(0.0, 1.0, 4)
 colors = [ mpl.cm.viridis(x) for x in cm_subsection ]
 
-path = 'Output/2d_pulse_350V/'
+path = 'Output/'#1d_pulse_350V/'
 if len(sys.argv) > 1:
     d = sys.argv[1]
     res = sys.argv[2]

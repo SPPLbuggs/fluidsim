@@ -7,11 +7,10 @@ program main
   implicit none
 
   type(grid) :: g
-  integer :: i, j, ts = 0, ts1, ts2, nx, ny, dof, lerr, rIdx = 1
-  real(8) :: l, w, ew, vl, res, dt, t_fin, t_pr, t_sv, t_sv0, &
-             sim_start, time1, time2, t_rk = 0, t_ph = 0, t1, t2, Id_mi = 0, Vd_mi = 0
+  integer :: ts = 0, ts1, ts2, nx, ny, dof, lerr, rIdx = 1
+  real(8) :: l, w, ew, vl, dt, t_fin, t_pr, t_sv, t_sv0, &
+             sim_start, time1, time2, t_rk = 0, t_ph = 0, t1, t2, Id_mi = 0, Vd_mi2 = 0
   character(80):: path
-  logical :: rf
 
   ! Initialize PETSc and MPI
   call PetscInitialize(petsc_null_character, ierr)
@@ -39,7 +38,6 @@ program main
   t_sv0 = 1e-2
   vl = 500 / ph0
   res = 1e7
-  rf = .False.
 
   ! Read input arguments
   call read_in
@@ -49,12 +47,13 @@ program main
     ew = 1.25e-3 / x0
   end if
 
+  ! rwall = .false.
   ! Initialize grid and arrays
-  ! path = 'Output/'
+  path = 'Output/'
   call g_init(g, nx, ny, px, py, dof, l, w, ew, trim(path))
   call lapl_init(g)
   call ptcl_init(g)
-  call circ_init(vl, res)
+  call circ_init(vl)
   call sfc_init(g)
 
   g%t  = 0
@@ -69,9 +68,9 @@ program main
     ! Solve ne system
     t_m = 1e9
 
-    if (myID == 0) call cpu_time(t1)
-    if (ts > 1) call ptcl_step(g, ph, sig)
-    if (myID == 0) call cpu_time(t2)
+    ! if (myID == 0) call cpu_time(t1)
+    if (ts > 1) call ptcl_step(g, ph)
+    ! if (myID == 0) call cpu_time(t2)
     t_rk = t_rk + t2 - t1
 
     ! if (.not. rf) then
@@ -96,15 +95,16 @@ program main
     !   end if
     ! end if
 
-    call circ_step(g, rf, ph, res)
+    !call circ_step(g, rf, ph, res)
+    !call circ_step(g, 1, ph, ni(:,:,2), ne(:,:,2), nt(:,:,2))
 
     ! Solve surface charge system
-    if (rwall) call sfc_step(g)
+    ! if (rwall) call sfc_step(g)
 
     ! Solve ph system
-    if (myID == 0) call cpu_time(t1)
-    call lapl_solve(g, ne(:,:,1), ni(:,:,1), nt(:,:,1), sig, lerr)
-    if (myID == 0) call cpu_time(t2)
+    ! if (myID == 0) call cpu_time(t1)
+    call lapl_solve(g, ne(:,:,1), ni(:,:,1), nt(:,:,1), sig_pl, lerr)
+    ! if (myID == 0) call cpu_time(t2)
     t_ph = t_ph + t2 - t1
 
     ! Accept step
@@ -122,23 +122,14 @@ program main
       nm(:,:,2) = nm(:,:,1)
       nt(:,:,2) = nt(:,:,1)
 
+      Vd_or = Vd_mi
+      Vd_mi = Vd_pl
+
+      sig_or = sig_mi
+      sig_mi = sig_pl
+
     ! Reject step
     else
-      do j = 1, g%by+2
-        do i = 1, g%bx+2
-          if (isnan(ph(i,j))) &
-            write(*,*) 'NaN at ph', i, j, 'on proc', myId
-          if (isnan(ne(i,j,2))) &
-            write(*,*) 'NaN at ne', i, j, 'on proc', myId
-          if (isnan(ni(i,j,2))) &
-            write(*,*) 'NaN at ni', i, j, 'on proc', myId
-          if (isnan(nt(i,j,2))) &
-            write(*,*) 'NaN at nt', i, j, 'on proc', myId
-          if (isnan(nm(i,j,2))) &
-            write(*,*) 'NaN at nm', i, j, 'on proc', myId
-        end do
-      end do
-
       g%dt = g%dt / 2d0
 
       ni(:,:,1) = ni(:,:,3)
@@ -150,6 +141,12 @@ program main
       ne(:,:,2) = ne(:,:,3)
       nm(:,:,2) = nm(:,:,3)
       nt(:,:,2) = nt(:,:,3)
+
+      Vd_pl = Vd_or
+      Vd_mi = Vd_or
+
+      sig_pl = sig_or
+      sig_mi = sig_or
     end if
 
     ! Print out some information
@@ -159,15 +156,15 @@ program main
       write(*,*)
       write(*,11) ts, g%t, (time2 - time1) / g%dt / float(ts2-ts1) / 60.
       write(*,12) g%dt, t_m
-      write(*,13) t_rk / (time2 - time1), t_ph / (time2 - time1)
-      write(*,14) Vd_pl * ph0, Id * e / t0
+      ! write(*,13) t_rk / (time2 - time1), t_ph / (time2 - time1)
+      write(*,14) Vd_pl * ph0, Id * e / t0, abs((Vd_pl - Vd_mi2) / Vd_pl)
       t_pr = 0
-      call cpu_time(time1)
+      time1 = time2
       ts1 = ts
       t_rk = 0
       t_ph = 0
 
-    else if (mod(ts,1) == 0) then
+    else if (mod(ts,50) == 0) then
       call cpu_time(time2)
       t_pr = time2 - time1
     end if
@@ -182,11 +179,13 @@ program main
     end if
 
     if ((.not. rf) .and. (g%t > 2d0)) then
-      if ((abs((Id - Id_mi) / Id) .le. (g%dt * 5d-4)) .and. &
-          (abs((Vd_pl - Vd_mi) / Vd_pl) .le. (g%dt * 5d-4))) exit!rIdx = rIdx + 1
+      if ((abs((Id - Id_mi) / Id) .le. (g%dt * 1d-3)) .and. &
+          (abs((Vd_pl - Vd_mi2) / Vd_pl) .le. (g%dt * 1d-3))) rIdx = rIdx + 1
       Id_mi = Id
-      Vd_mi = Vd_pl
+      Vd_mi2 = Vd_pl
     end if
+    call MPI_Allreduce(MPI_In_Place, rIdx, 1, MPI_Int, MPI_Max, comm, ierr)
+    if (rIdx > 1) exit
   end do
 
   if (myId == 0) then
@@ -205,7 +204,7 @@ program main
 11 format('Timestep:', i7, '  Time:', es9.2, '  time/us:', f6.2, ' min')
 12 format('   dT:  ', es9.2, '   tm:', es9.2)
 13 format('  trk:  ', f5.2, '      tph:', f5.2)
-14 format('   Vd:', f7.2, '       Id:', es9.2)
+14 format('   Vd:', f7.2, '       Id:', es9.2, '     diff:' es9.2)
 9  format('Simulation finished in ', i0, ' hr ', i0, ' min')
 
 contains
@@ -323,6 +322,8 @@ contains
           write(path,44) int(vl*ph0/10.0)*10
       end if
     end if
+
+    res = res * e / (ph0 * t0)
 
 
     if (myId == 0) call system('mkdir '//trim(path))

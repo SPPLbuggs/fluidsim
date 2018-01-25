@@ -104,7 +104,7 @@ contains
         n(:,:,2) = max(n(:,:,2), n_min)
         call comm_real(g%bx, g%by, n(:,:,2))
 
-    else if (stage == 4) then
+      else if (stage == 4) then
         do j = 2, g%by+1
           do i = 2, g%bx+1
             n(i,j,2) = n(i,j,3) + dt * (k(i,j,1) &
@@ -114,7 +114,7 @@ contains
 
         n(:,:,2) = max(n(:,:,2), n_min)
         call comm_real(g%bx, g%by, n(:,:,2))
-    else
+      else
         do j = 2, g%by+1
           do i = 2, g%bx+1
             n(i,j,1) = n(i,j,3) + dt * (k(i,j,1) &

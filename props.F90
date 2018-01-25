@@ -40,7 +40,7 @@ module props
                        n_zero = 1e8 * x0**3
   real(8) :: n_init = 1e12 * x0**3
 
-  logical :: unif = .True., cyl = .True., rwall = .True.
+  logical :: unif = .True., cyl = .True., rwall = .True., rf = .False.
 
 contains
 
