@@ -140,8 +140,12 @@ print 'Res Freq = {:.2f} GHz'.format(wr / np.pi / 2.0 / 1e9)
 m = -1
 for i in range(len(x)):
     for j in range(len(y)):
-        # Plasm freq Term: wp**2 / w**2 / (w**2 + nu**2)
+        # Plasm freq Term: wp**2 / (wr**2 + 1j * wr * nu)
         wp[i,j] = e**2 * ne[m,j,i] / me / eps / (wr**2 + 1j * wr * nu(Te[m,j,i]))
+
+# plt.plot(x, ne[-1,0,:])
+# plt.yscale('log')
+# sys.exit()
 
 for j in range(len(dY)):
     for k in range(len(dZ)):
@@ -158,17 +162,17 @@ for i in range(len(dX)):
 print 'Integrating Matrix...'
 val = int3D(Mat)
 
-dw = wr * ((1 + val)**0.5 - 1)
-Q = wr / 2.0 / (a0 - dw.imag)
+Qa = 2000.
+dw = ((1 - (1j + 1.0) / Qa + val)**0.5 - 1)
+w = wr * (dw.real + 1)
+Q = -(dw.real + 1.0) / dw.imag / 2.0
 
 for l in range(nt):
-    tmp = (abs(dw) + wr - wT[l]) * 2.0 * Q / wT[l]
-    T[l] = 1.0 / (1.0 + tmp**2)
+    T[l] = 1.0 / Qa**2 / ((wT[l]/w - w/wT[l])**2 + (1.0/Q)**2)
 
-    tmp = (wr - wT[l]) * 2.0 * 2000 / wT[l]
-    T0[l] = 1.0 / (1.0 + tmp**2)
+    T0[l] = 1.0 / Qa**2 / ((wT[l]/wr - wr/wT[l])**2 + (1.0/Qa)**2)
 
-dw = dw / np.pi / 2.0 / 1e6
+dw = wr * dw / np.pi / 2.0 / 1e6
 print 'Result:  dw = {:.2f} MHz, Q = {:.2f}\n'.format(dw,Q)
 
 t2 = time.time()
@@ -188,7 +192,7 @@ ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T), label='with plasma')
 plt.legend(frameon=False)
 plt.xlabel('Frequency [$GHz$]')
 plt.ylabel('Transmission [$dB$]')
-plt.ylim([-45,5])
+# plt.ylim([-45,5])
 
 gs.tight_layout(fig, rect=[0, 0, 1, 1])
 plt.savefig('Figures/2DAC_T.eps',dpi=300)

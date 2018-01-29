@@ -322,22 +322,6 @@ contains
 
         ! Flux at j + 1/2
         if (g%type_y(i-1,j-1) == 3) then
-          ! if (Ey(2) < 0d0) then
-          !   a = 1d0 ! electrons drift
-          ! else
-          !   a = 0d0 ! ions drift
-          ! end if
-          !
-          ! mue(2) = get_mue(Te(2))
-          ! ve = sqrt((16d0 * e * ph0 * Te(2)) / (3d0 * pi * me)) * t0 / x0
-          !
-          ! ! Flux at j + 1/2
-          ! flxi(2) = - (1d0 - a) * mui * Ey(2) * ni(i,j) &
-          !           + 2.5d-1 * vi * ni(i,j)
-          !
-          ! flxe(2) = - a * mue(2) * Ey(2) * ne(i,j) &
-          !           + 2.5d-1 * ve * ne(i,j)
-
           Te(2) = get_Te(nt(i,j),   ne(i,j))
           mue(2) = get_mue(Te(2))
           De(2) = get_De(Te(2))

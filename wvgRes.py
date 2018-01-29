@@ -74,8 +74,8 @@ def nu(x):
     return np.exp(a+b*y + c*y**2 + d*y**3 + f*y**4 + g*y**5 + h*y**6
                   + i*y**7 + j*y**8) * ninf
 nx = 60
-ny = 60
-nz = 60
+ny = 80
+nz = 80
 Mat = np.zeros([nx, ny, nz], dtype='complex')
 Ex = np.zeros([ny, nz])
 
@@ -91,47 +91,57 @@ wp = np.zeros([len(x), len(y)], dtype='complex')
 wr = np.pi * 2.9989e8 * (1.0 / 2e-2**2 + 1.0 / 2e-2**2)**0.5
 a0 = wr / 2.0 / 2000.
 
-tt = 3
-nt = len(np.arange(0,len(t),tt))
+nt_mi = 30
+t = np.concatenate([np.linspace(-1,0,nt_mi),t])
+
+tt = 2
+nt = len(t[::tt])
 dw = np.zeros(nt, dtype='complex')
 Q = np.zeros(nt)
-wT = np.array([wr, wr+2*np.pi*50e6, wr+2*np.pi*75e6, wr+2*np.pi*100e6,
-               wr+2*np.pi*125e6, wr+2*np.pi*150e6, wr+2*np.pi*200e6])
+Qa = 2000.
+
+wT0 = wr * (((1 - (1j + 1.0) / Qa + 0)**0.5 - 1).real + 1)
+wT = np.array([wT0, wT0+2*np.pi*50e6, wT0+2*np.pi*75e6, wT0+2*np.pi*100e6,
+               wT0+2*np.pi*125e6, wT0+2*np.pi*150e6, wT0+2*np.pi*200e6])
 T = np.zeros([nt, len(wT)])
 
 n = 0
+m2 = 0
 for m in np.arange(0,len(t),tt):
+    val = 0
+    if t[m] > 0:
+        print 'Running at t = {:.2f} us and Vd = {:.2f} V'.format(t[m], Vd[m2])
 
-    print 'Running at t = {:.2f} us and Vd = {:.2f} V'.format(t[m], Vd[m])
+        for i in range(len(x)):
+            for j in range(len(y)):
+                # Plasm freq Term: wp**2 / w**2 / (w**2 + nu**2)
+                wp[i,j] = e**2 * ne[m2,j,i] / me / eps / (wr**2 + 1j * wr * nu(Te[m2,j,i]))
 
-    for i in range(len(x)):
-        for j in range(len(y)):
-            # Plasm freq Term: wp**2 / w**2 / (w**2 + nu**2)
-            wp[i,j] = e**2 * ne[m,j,i] / me / eps / (wr**2 + 1j * wr * nu(Te[m,j,i]))
-
-    for j in range(len(dY)):
-        for k in range(len(dZ)):
-            Ex[j,k] = Ej(Y[j], Z[k])
-
-    print 'Assembling Matrix...'
-    for i in range(len(dX)):
         for j in range(len(dY)):
             for k in range(len(dZ)):
-                r = np.sqrt((Y[j+1] - 1.0)**2 + (Z[k+1] - 1.0)**2)
-                rj = (np.abs(y*1000 - r)).argmin()
-                Mat[i,j,k] = wp[i,rj] * Ex[j,k] * dX[i] * dY[j] * dZ[k]
+                Ex[j,k] = Ej(Y[j], Z[k])
 
-    print 'Integrating Matrix...'
-    val = int3D(Mat)
+        print 'Assembling Matrix...'
+        for i in range(len(dX)):
+            for j in range(len(dY)):
+                for k in range(len(dZ)):
+                    r = np.sqrt((Y[j+1] - 1.0)**2 + (Z[k+1] - 1.0)**2)
+                    rj = (np.abs(y*1000 - r)).argmin()
+                    Mat[i,j,k] = wp[i,rj] * Ex[j,k] * dX[i] * dY[j] * dZ[k]
 
-    dw[n] = wr * ((1 + val)**0.5 - 1)
-    Q[n] = wr / 2.0 / (a0 - dw[n].imag)
+        print 'Integrating Matrix...'
+        val = int3D(Mat)
+
+        m2 += tt
+
+    dw[n] = ((1 - (1j + 1.0) / Qa + val)**0.5 - 1)
+    w = wr * (dw[n].real + 1)
+    Q[n]= -(dw[n].real + 1.0) / dw[n].imag / 2.0
 
     for l in range(len(wT)):
-        tmp = (abs(dw[n]) + wr - wT[l]) * 2.0 * Q[n] / wT[l]
-        T[n,l] = 1.0 / (1.0 + tmp**2)
+        T[n,l] = 1.0 / Qa**2 / ((wT[l]/w - w/wT[l])**2 + (1.0/Q[n])**2)
 
-    dw[n] = dw[n] / np.pi / 2.0 / 1e6
+    dw[n] = wr * dw[n].real / np.pi / 2.0 / 1e6
     print 'Result:  dw = {:.2f} MHz, Q = {:.2f}\n'.format(dw[n],Q[n])
 
     n = n+1
@@ -152,8 +162,8 @@ ax1.set_ylabel(r'Quality Factor')
 ax0.set_xlabel(r'Time [$\mu \,s$]')
 ax0.set_xscale('log')
 
-ax0.plot(t[np.arange(0,len(t),tt)], abs(dw), color=color2[0])
-ax1.plot(t[np.arange(0,len(t),tt)], Q, color=color2[1])
+ax0.plot(t[nt_mi::tt], dw[nt_mi/tt:].real, color=color2[0])
+ax1.plot(t[nt_mi::tt], Q[nt_mi/tt:], color=color2[1])
 
 plt.annotate('', xy=(0.17-0.13, 0.045+0.15), xycoords='axes fraction',
              xytext=(0.17, 0.05), textcoords='axes fraction',
@@ -184,12 +194,13 @@ cb = mpl.colorbar.ColorbarBase(ax1, cmap=cmap, norm=norm, ticks=np.arange(0,201,
 cb.outline.set_visible(False)
 cb.ax.set_title(r'$\Delta f_\mathrm{T}$ [$MHz$]')
 
-for l in range(len(wT)-1,0,-1):
-    ax0.plot(t[np.arange(0,len(t),tt)], 10*np.log10(T[:,l]), color=colors[l],
+for l in range(len(wT)-1,-1,-1):
+    ax0.plot(t[::tt], 10*np.log10(T[:,l]), color=colors[l],
              label=r'{}'.format(int((wT[l]-wr)/1e6/2.0/np.pi)))
 ax0.set_xlabel(r'Time [$\mu$s]')
 ax0.set_ylabel(r'Transmission [$dB$]')
-#ax0.legend(bbox_to_anchor = (1.3, 0.55), loc = 5, frameon=False, title=r'$\Delta f_\mathrm{T}$ (MHz)')
+ax0.set_xticks(np.arange(0,22,5))
+ax0.set_xlim([-2,22])
 
 gs.tight_layout(fig, rect=[0, 0, 1, 1])
 plt.savefig('Figures/2dpulseT.eps',dpi=300)

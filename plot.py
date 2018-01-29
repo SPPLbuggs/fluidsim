@@ -306,7 +306,8 @@ if (ny > 1):
     ax0.spines['top'].set_visible(False)
 
     # im = ax0.contourf(y,x,f2[-1,:,:].T, 30)
-    im = ax0.pcolormesh(y, x, f2[-1,:,:].T) #, shading='gouraud')
+    # im = ax0.pcolormesh(y, x, f2[-1,:,:].T) #, shading='gouraud')
+    im = ax0.contourf(y, x, np.log10(f2[-1,:,:].T), 30)
     fig.colorbar(im, cax = cbax)
     ax0.set_ylabel('X')
     ax0.set_xlabel('R')

@@ -9,7 +9,7 @@ program main
   type(grid) :: g
   integer :: ts = 0, ts1, ts2, nx, ny, dof, lerr, rIdx = 1
   real(8) :: l, w, ew, vl, dt, t_fin, t_pr, t_sv, t_sv0, &
-             sim_start, time1, time2, t_rk = 0, t_ph = 0, t1, t2, Id_mi = 0, Vd_mi2 = 0
+             sim_start, time1, time2, Id_mi = 0, Vd_mi2 = 0
   character(80):: path
 
   ! Initialize PETSc and MPI
@@ -32,7 +32,7 @@ program main
   w  = 1.5e-2 / x0
   ew = 2e-2   / x0
   dt = 5e-6
-  t_fin = 1000
+  t_fin = 100
   t_pr = 0d0
   t_sv = 1e-2
   t_sv0 = 1e-2
@@ -47,9 +47,8 @@ program main
     ew = 1.25e-3 / x0
   end if
 
-  ! rwall = .false.
   ! Initialize grid and arrays
-  path = 'Output/'
+  ! path = 'Output/'
   call g_init(g, nx, ny, px, py, dof, l, w, ew, trim(path))
   call lapl_init(g)
   call ptcl_init(g)
@@ -59,53 +58,15 @@ program main
   g%t  = 0
   g%dt = dt
 
-  ! vl = 350 / ph0
-  ! ph(1,:) = vl
-
   do
     if (g%t >= t_fin) exit
 
     ! Solve ne system
     t_m = 1e9
-
-    ! if (myID == 0) call cpu_time(t1)
     if (ts > 1) call ptcl_step(g, ph)
-    ! if (myID == 0) call cpu_time(t2)
-    t_rk = t_rk + t2 - t1
-
-    ! if (.not. rf) then
-    !   if (rIdx == 1) then
-    !     res = 6.3e6
-    !   else if (rIdx == 2) then
-    !     res = 2e6
-    !   else if (rIdx == 3) then
-    !     res = 6.3e5
-    !   else if (rIdx == 4) then
-    !     res = 2e5
-    !   else if (rIdx == 5) then
-    !     res = 6.3e4
-    !   else if (rIdx == 6) then
-    !     res = 2e4
-    !   else if (rIdx == 7) then
-    !     res = 6.3e3
-    !   else if (rIdx == 8) then
-    !     res = 2e3
-    !   else
-    !     exit
-    !   end if
-    ! end if
-
-    !call circ_step(g, rf, ph, res)
-    !call circ_step(g, 1, ph, ni(:,:,2), ne(:,:,2), nt(:,:,2))
-
-    ! Solve surface charge system
-    ! if (rwall) call sfc_step(g)
 
     ! Solve ph system
-    ! if (myID == 0) call cpu_time(t1)
     call lapl_solve(g, ne(:,:,1), ni(:,:,1), nt(:,:,1), sig_pl, lerr)
-    ! if (myID == 0) call cpu_time(t2)
-    t_ph = t_ph + t2 - t1
 
     ! Accept step
     if (lerr == 0) then
@@ -127,7 +88,6 @@ program main
 
       sig_or = sig_mi
       sig_mi = sig_pl
-
     ! Reject step
     else
       g%dt = g%dt / 2d0
@@ -156,13 +116,10 @@ program main
       write(*,*)
       write(*,11) ts, g%t, (time2 - time1) / g%dt / float(ts2-ts1) / 60.
       write(*,12) g%dt, t_m
-      ! write(*,13) t_rk / (time2 - time1), t_ph / (time2 - time1)
-      write(*,14) Vd_pl * ph0, Id * e / t0, abs((Vd_pl - Vd_mi2) / Vd_pl)
+      write(*,14) Vd_pl * ph0, Id * e / t0, abs((Vd_pl - Vd_mi2) / Vd_pl) / (g%dt * 1d-3) - 1d0
       t_pr = 0
       time1 = time2
       ts1 = ts
-      t_rk = 0
-      t_ph = 0
 
     else if (mod(ts,50) == 0) then
       call cpu_time(time2)
@@ -172,7 +129,6 @@ program main
     ! Save data
     if (t_sv <= g%t) then
       call writeOut
-
       t_sv  = t_sv + t_sv0
       t_sv0 = t_sv0 * 1.01
       t_sv0 = min(t_sv0, 1d-1)
@@ -185,7 +141,9 @@ program main
       Vd_mi2 = Vd_pl
     end if
     call MPI_Allreduce(MPI_In_Place, rIdx, 1, MPI_Int, MPI_Max, comm, ierr)
-    if (rIdx > 1) exit
+    ! if (rIdx > 1) exit
+
+    if ((.not. rf) .and. (abs(Vd_pl * ph0) .ge. 600)) call MPI_Abort(comm, 1, ierr)
   end do
 
   if (myId == 0) then
@@ -203,7 +161,6 @@ program main
 
 11 format('Timestep:', i7, '  Time:', es9.2, '  time/us:', f6.2, ' min')
 12 format('   dT:  ', es9.2, '   tm:', es9.2)
-13 format('  trk:  ', f5.2, '      tph:', f5.2)
 14 format('   Vd:', f7.2, '       Id:', es9.2, '     diff:' es9.2)
 9  format('Simulation finished in ', i0, ' hr ', i0, ' min')
 

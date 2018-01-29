@@ -62,14 +62,6 @@ contains
         scfac = min(2.5d0, max(3d-1, scfac))
         g%dt = scfac * g%dt
 
-        ! call MPI_Allreduce(MPI_In_Place, tau_m, 1, etype, &
-        !                    MPI_Min, comm, ierr)
-        ! if (g%ny > 1) then
-        !   g%dt = min(max(g%dt, 1d-12), tau_m*sqrt(2d0))
-        ! else
-        !   g%dt = min(max(g%dt, 1d-12), tau_m*2d0)
-        ! end if
-
         call MPI_Bcast(g%dt, 1, etype, 0, comm, ierr)
 
         if (g%dt <= 1.1d-12) then

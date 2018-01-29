@@ -7,7 +7,7 @@ PETSC = -I${PETSC_DIR}/include -I${PETSC_DIR}/arch-linux2-c-debug/include
 include ${PETSC_DIR}/lib/petsc/conf/variables
 include ${PETSC_DIR}/lib/petsc/conf/rules
 
-objects = props.o ptcl_props.o lapl_lib.o ptcl_lib.o circ_lib.o sfc_lib.o
+objects = props.o ptcl_props.o lapl_lib.o circ_lib.o sfc_lib.o ptcl_lib.o
 
 #--------------------------------------------------------------------------
 debug: COMPFLAG += -Wall -Wextra -pedantic -g -O0 -fimplicit-none -fbacktrace
