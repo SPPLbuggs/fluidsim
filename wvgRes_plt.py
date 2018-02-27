@@ -43,7 +43,7 @@ wr = np.pi * 2.9989e8 * (1e4 / yl**2 + 1e4 / zl**2)**0.5
 Qa = 2000.
 wT0 = wr * (((1 - (1j + 1.0) / Qa + 0)**0.5 - 1).real + 1)
 nf = 50
-wT = wT0 + np.linspace(-30,60,nf) * 2e6 * np.pi
+wT = wT0 + np.linspace(0,60,nf) * 2e6 * np.pi
 T = np.zeros([nt, nf])
 Q = np.zeros(nt)
 
@@ -66,7 +66,7 @@ ax1.set_ylabel(r'Quality Factor')
 ax0.set_xlabel(r'Time [$\mu \,s$]')
 ax0.set_xscale('log')
 
-ax0.plot(t, dw.real, color=color2[0], label=r'$\Delta f_\mathrm{res}$')
+ax0.plot(t, dw.real*wr/2e6/np.pi, color=color2[0], label=r'$\Delta f_\mathrm{res}$')
 ax1.plot(t, Q, color=color2[1], label=r'Q')
 
 ax0.legend(frameon=False, loc=2, bbox_to_anchor = (0.0, 1.075))
@@ -130,9 +130,14 @@ ax0.spines['top'].set_visible(False)
 # cb.outline.set_visible(False)
 # cb.ax.set_title(r'$\Delta f$ [$MHz$]')
 
+tgt = np.logspace(np.log10(80e-3),np.log10(t[-1]),10)
+ns = np.zeros(len(tgt), dtype='int')
+for i in range(len(tgt)):
+    ns[i] = np.argmin((tgt[i] - t)**2)
 
-for n in range(0,nt,nt/5):
-    ax0.plot((wT - wT0)/2e6/np.pi, 10*np.log10(T[n,:]))#, color=colors[n/5])
+for j in range(len(ns)):
+    n = ns[j]
+    ax0.plot((wT - wT0)/2e6/np.pi, 10*np.log10(T[n,:]), color=colors[j])
 ax0.set_xlabel(r'$\Delta$f [MHz]')
 ax0.set_ylabel(r'Transmission [$dB$]')
 # ax0.set_xticks(np.arange(0,22,5))

@@ -93,7 +93,7 @@ dZ = ((Z[2:] - Z[1:-1]) + (Z[1:-1] - Z[:-2])) / 2.0
 wp = np.zeros([len(x), len(y)], dtype='complex')
 wr = np.pi * 2.9989e8 * (1.0 / yl**2 + 1.0 / zl**2)**0.5
 
-tt = 31
+tt = 11
 nt = len(t[::tt])
 dw = np.zeros(nt, dtype='complex')
 Qa = 2000.
