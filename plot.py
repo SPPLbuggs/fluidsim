@@ -24,12 +24,12 @@ plt.rcParams['figure.figsize'] = (4.5, 3)
 # mpl.rc('text', usetex=True)
 
 # Use log time scale
-ylog = False
+ylog = False#True
 
 cm_subsection = np.linspace(0.0, 1.0, 4)
 colors = [ mpl.cm.viridis(x) for x in cm_subsection ]
 
-path = 'Output/'#1d_pulse_350V/'
+path = 'Output/2d_pulse_1400V/'
 if len(sys.argv) > 1:
     d = sys.argv[1]
     res = sys.argv[2]
@@ -264,16 +264,16 @@ ax0.set_ylabel('Voltage')
 # ax0.set_yscale('log')
 ax1.set_ylabel('Current')
 ax1.set_xlabel('Time')
-ax1.set_yscale('log')
+# ax1.set_yscale('log')
 if ylog:
     ax0.set_xscale('log')
     ax1.set_xscale('log')
 
 ax0.plot(t, Vd, color=colors[0], label='Vd')
-ax1.plot(t, np.abs(Id)*1000., color=colors[1], label='Id')
+ax1.plot(t, Id*1000., color=colors[1], label='Id')
 # ax0.plot(t, dt*1000., color=colors[2], label=r'$\Delta$t')
 # ax0.legend(loc='best')
-ax1.set_ylim([3e-3,3e2])
+# ax1.set_ylim([3e-3,3e2])
 # ax0.set_xlim([0.05,t[-1]])
 
 gs6.tight_layout(fig6, rect=[0, 0, 1, 1])
@@ -306,8 +306,8 @@ if (ny > 1):
     ax0.spines['top'].set_visible(False)
 
     # im = ax0.contourf(y,x,f2[-1,:,:].T, 30)
-    # im = ax0.pcolormesh(y, x, f2[-1,:,:].T) #, shading='gouraud')
-    im = ax0.contourf(y, x, np.log10(f2[-1,:,:].T), 30)
+    im = ax0.pcolormesh(y, x, np.log10(f2[-1,:,:]).T) #, shading='gouraud')
+    # im = ax0.contourf(y, x, np.log10(f2[-1,:,:].T), 30)
     fig.colorbar(im, cax = cbax)
     ax0.set_ylabel('X')
     ax0.set_xlabel('R')

@@ -23,21 +23,32 @@ contains
     integer :: i, j
     real(8) :: a, Te, Ex, mue, ve, dr, flxi, flxe
 
-    if (rf) then
-      ! Vsrc = Vmax
+    if (rf == 0) then
+      ! ** DC **
+      Vsrc = Vmax
+    else if (rf == 1) then
+      ! ** AC **
       Vsrc = Vmax * cos(pi * g%t)
-      ! if (g%t < 2.5d-1) then
-      !   Vsrc = Vmax * sin(4 * pi * g%t)**3
+    else if (rf == 2) then
+      ! ** Pulse **
+      if (g%t < 2.5d-1) then
+        Vsrc = Vmax * sin(4 * pi * g%t)**3
+      else
+        Vsrc = 0d0
+      end if
+
+      ! ** Taemin's Pulse **
+      ! if (g%t < 20d-3) then
+      !   Vsrc = Vmax * sin(50d0 * pi * g%t)**3
       ! else
-      !   Vsrc = 0
+      !   Vsrc = 0d0
       ! end if
     end if
 
     !Res = R0 * e / (ph0 * t0)
 
-    i = g%bx+1
+    i = 2
     Id = 0d0
-
     do j = 2, g%by+1
       if (g%ny > 1) then
         if (cyl) then
@@ -49,26 +60,26 @@ contains
         dr = g%w**2 * pi
       end if
 
-      if (g%type_x(i-1,j-1) == 2) then
+      if (g%type_x(i-1,j-1) == -2) then
         if (Vd_mi > ph(i,j)) then
             a = 1d0 ! electrons drift
         else
             a = 0d0 ! ions drift
         end if
 
-        Ex = -(Vd_mi - ph(i,j)) / g%dx(i)
+        Ex = (Vd_mi - ph(i,j)) / g%dx(i)
         Te = get_Te(nt(i,j), ne(i,j))
         mue = get_mue(Te)
         ve = sqrt((16d0 * e * ph0 * Te) / (3d0 * pi * me)) * t0 / x0
 
         ! Flux at i + 1/2
         flxi = (1d0 - a) * mui * Ex * ni(i,j) &
-               + 2.5d-1 * vi * ni(i,j)
+               - 2.5d-1 * vi * ni(i,j)
         flxe = - a * mue * Ex * ne(i,j) &
-               + 2.5d-1 * ve * ne(i,j) &
+               - 2.5d-1 * ve * ne(i,j) &
                - gam * flxi
 
-        Id = Id - dr * (flxi - flxe)
+        Id = Id + dr * (flxi - flxe)
       end if
     end do
 
@@ -93,15 +104,9 @@ contains
       Vd_pl = Vd_or + g%dt * (kv(1) &
               + kv(4) * 4d0 + kv(5)) / 6d0
     end if
-    ! 
-    ! write(*,*)
-    ! write(*,33) stage, Vd_pl * ph0, Vd_mi * ph0, Vd_or * ph0
-    ! write(*,34) kv
-    ! read(*,*) i
-    ! 33 format(i0,10f8.3)
-    ! 34 format(10es10.2)
 
-    if (rf) Vd_pl = Vsrc
+    if (rf .ne. -1) Vd_pl = Vsrc
+    if (rf .ne. -1) Vd_mi = Vsrc
     i = 2
     do j = 2, g%by+1
       if (g%type_x(i-1,j-1) == -2) then

@@ -40,7 +40,8 @@ module props
                        n_zero = 1e8 * x0**3
   real(8) :: n_init = 1e12 * x0**3
 
-  logical :: unif = .True., cyl = .True., rwall = .True., rf = .False.
+  integer :: rf = 0
+  logical :: unif = .True., cyl = .True., rwall = .True.
 
 contains
 
@@ -85,7 +86,7 @@ contains
     g%w   = w
     g%ew  = ew
 
-    xtemp = 2.5 / float(g%nx+1)
+    xtemp = 2.0 * 0.886 / float(g%nx+1)
     allocate(x(g%bx+2), g%dx(g%bx+1), g%dlx(g%bx) )
 
     if (unif) then
@@ -94,7 +95,7 @@ contains
       end do
     else
       do i = 1, g%bx+2
-        x(i) = tanh(-1.25 + xtemp * (g%offx + i - 1))
+        x(i) = tanh(-0.886 + xtemp * (g%offx + i - 1))
       end do
     end if
 
@@ -117,7 +118,7 @@ contains
 
     if (g%ny > 1) then
       allocate( y(g%by+2), g%dy(g%by+1), g%dly(g%by) )
-      ytemp = 1.25 / float(g%ny+1)
+      ytemp = 0.886 / float(g%ny+1)
 
       if (unif) then
         do j = 1, g%by+2
@@ -125,7 +126,7 @@ contains
         end do
       else
         do j = 1, g%by+2
-          y(j) = tanh(-1.25 + ytemp * (g%offy + j - 1))
+          y(j) = tanh(-0.886 + ytemp * (g%offy + j - 1))
         end do
       end if
 

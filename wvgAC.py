@@ -31,15 +31,15 @@ plt.rcParams['font.serif'] = ['Computer Modern']
 mpl.rc('text', usetex=True)
 
 t1 = time.time()
-data = np.load('Data/2D_350AC_nx80_ny80_80us.npz')
-
-x = data['x']
-y = data['y']
-t = data['t']
-Vd = data['Vd']
-Id = data['Id']
-ne = data['ne']
-Te = data['nt']
+# data = np.load('Data/2D_350AC_nx80_ny80_80us.npz')
+#
+# x = data['x']
+# y = data['y']
+# t = data['t']
+# Vd = data['Vd']
+# Id = data['Id']
+# ne = data['ne']
+# Te = data['nt']
 
 eps = 8.8542e-12
 me = 9.109e-31
@@ -49,11 +49,11 @@ Tg = 300.0
 p = 3.0
 ninf = p * 101325.0 / 760.0 / kb / Tg
 
-ttemp = np.linspace(t[-100], t[-1], 1000)
-vtemp = spline(t[-100:], Vd[-100:], ttemp)
-itemp = spline(t[-100:], Id[-100:], ttemp)
-Vrms = np.sqrt( np.sum(vtemp**2) / 1000. )
-Irms = np.sqrt( np.sum(itemp**2) / 1000. )
+# ttemp = np.linspace(t[-100], t[-1], 1000)
+# vtemp = spline(t[-100:], Vd[-100:], ttemp)
+# itemp = spline(t[-100:], Id[-100:], ttemp)
+# Vrms = np.sqrt( np.sum(vtemp**2) / 1000. )
+# Irms = np.sqrt( np.sum(itemp**2) / 1000. )
 
 def mu(x):
     y = np.log(np.maximum(2.34e-1,np.minimum(1.57e2, x)))
@@ -83,10 +83,10 @@ def mu(x):
 
     return soln
 
-mue = mu([5]) / ninf
-ne_rms = Irms * 1e-2 / (e * mue * Vrms * np.pi * (1.5e-3)**2)
-
-print Vrms, Irms, ne_rms, mue
+# mue = mu([5]) / ninf
+# ne_rms = Irms * 1e-2 / (e * mue * Vrms * np.pi * (1.5e-3)**2)
+#
+# print Vrms, Irms, ne_rms, mue
 
 
 Ej = lambda y, z: (np.sin(np.pi * y / 2.0) * np.sin(np.pi * z / 2.0))**2
@@ -127,6 +127,17 @@ dX = ((X[2:] - X[1:-1]) + (X[1:-1] - X[:-2])) / 2.0
 dY = ((Y[2:] - Y[1:-1]) + (Y[1:-1] - Y[:-2])) / 2.0
 dZ = ((Z[2:] - Z[1:-1]) + (Z[1:-1] - Z[:-2])) / 2.0
 
+
+data = np.load('Data/2D_315AC_50x50.npz')
+
+x = data['x']
+y = data['y']
+t = data['t']
+Vd = data['Vd']
+Id = data['Id']
+ne = data['ne']
+Te = data['nt']
+
 wp = np.zeros([len(x), len(y)], dtype='complex')
 wr = np.pi * 2.9989e8 * (1.0 / 2e-2**2 + 1.0 / 2e-2**2)**0.5
 a0 = wr / 2.0 / 2000.
@@ -153,10 +164,141 @@ for j in range(len(dY)):
 
 print 'Assembling Matrix...'
 for i in range(len(dX)):
+    xi = (np.abs(x*100-X[i])).argmin()
     for j in range(len(dY)):
         for k in range(len(dZ)):
             r = np.sqrt((Y[j+1] - 1.0)**2 + (Z[k+1] - 1.0)**2)
-            rj = (np.abs(y*1000 - r)).argmin()
+            rj = (np.abs(y*100 - r)).argmin()
+            Mat[i,j,k] = wp[xi,rj] * Ex[j,k] * dX[i] * dY[j] * dZ[k]
+
+print 'Integrating Matrix...'
+val = int3D(Mat)
+
+Qa = 2000.
+dw = ((1 - (1j + 1.0) / Qa + val)**0.5 - 1)
+w = wr * (dw.real + 1)
+Q = -(dw.real + 1.0) / dw.imag / 2.0
+
+for l in range(nt):
+    T[l] = 1.0 / Qa**2 / ((wT[l]/w - w/wT[l])**2 + (1.0/Q)**2)
+
+    T0[l] = 1.0 / Qa**2 / ((wT[l]/wr - wr/wT[l])**2 + (1.0/Qa)**2)
+
+dw = wr * dw / np.pi / 2.0 / 1e6
+print 'Result:  dw = {:.2f} MHz, Q = {:.2f}\n'.format(dw,Q)
+
+fig = plt.figure()
+
+gs = gridspec.GridSpec(1,1)
+ax = fig.add_subplot(gs[0,0])
+
+ax.spines['right'].set_visible(False)
+ax.spines['top'].set_visible(False)
+
+ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T0), label='0 V')
+ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T), label='315 V')
+
+data = np.load('Data/2D_325AC_100x100.npz')
+
+x = data['x']
+y = data['y']
+t = data['t']
+Vd = data['Vd']
+Id = data['Id']
+ne = data['ne']
+Te = data['nt']
+
+wp = np.zeros([len(x), len(y)], dtype='complex')
+wr = np.pi * 2.9989e8 * (1.0 / 2e-2**2 + 1.0 / 2e-2**2)**0.5
+a0 = wr / 2.0 / 2000.
+
+nt = 1000
+T0 = np.zeros([nt])
+T = np.zeros([nt])
+wT = np.linspace(10,12,nt)*2.0*np.pi*1e9
+print 'Res Freq = {:.2f} GHz'.format(wr / np.pi / 2.0 / 1e9)
+
+m = -1
+for i in range(len(x)):
+    for j in range(len(y)):
+        # Plasm freq Term: wp**2 / (wr**2 + 1j * wr * nu)
+        wp[i,j] = e**2 * ne[m,j,i] / me / eps / (wr**2 + 1j * wr * nu(Te[m,j,i]))
+
+# plt.plot(x, ne[-1,0,:])
+# plt.yscale('log')
+# sys.exit()
+
+for j in range(len(dY)):
+    for k in range(len(dZ)):
+        Ex[j,k] = Ej(Y[j], Z[k])
+
+print 'Assembling Matrix...'
+for i in range(len(dX)):
+    xi = (np.abs(x*100-X[i])).argmin()
+    for j in range(len(dY)):
+        for k in range(len(dZ)):
+            r = np.sqrt((Y[j+1] - 1.0)**2 + (Z[k+1] - 1.0)**2)
+            rj = (np.abs(y*100 - r)).argmin()
+            Mat[i,j,k] = wp[xi,rj] * Ex[j,k] * dX[i] * dY[j] * dZ[k]
+
+print 'Integrating Matrix...'
+val = int3D(Mat)
+
+Qa = 2000.
+dw = ((1 - (1j + 1.0) / Qa + val)**0.5 - 1)
+w = wr * (dw.real + 1)
+Q = -(dw.real + 1.0) / dw.imag / 2.0
+
+for l in range(nt):
+    T[l] = 1.0 / Qa**2 / ((wT[l]/w - w/wT[l])**2 + (1.0/Q)**2)
+
+    T0[l] = 1.0 / Qa**2 / ((wT[l]/wr - wr/wT[l])**2 + (1.0/Qa)**2)
+
+dw = wr * dw / np.pi / 2.0 / 1e6
+print 'Result:  dw = {:.2f} MHz, Q = {:.2f}\n'.format(dw,Q)
+ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T), label='325 V')
+
+data = np.load('Data/2D_350AC_nx80_ny80_80us.npz')
+
+x = data['x']
+y = data['y']
+t = data['t']
+Vd = data['Vd']
+Id = data['Id']
+ne = data['ne']
+Te = data['nt']
+
+wp = np.zeros([len(x), len(y)], dtype='complex')
+wr = np.pi * 2.9989e8 * (1.0 / 2e-2**2 + 1.0 / 2e-2**2)**0.5
+a0 = wr / 2.0 / 2000.
+
+nt = 1000
+T0 = np.zeros([nt])
+T = np.zeros([nt])
+wT = np.linspace(10,12,nt)*2.0*np.pi*1e9
+print 'Res Freq = {:.2f} GHz'.format(wr / np.pi / 2.0 / 1e9)
+
+m = -1
+for i in range(len(x)):
+    for j in range(len(y)):
+        # Plasm freq Term: wp**2 / (wr**2 + 1j * wr * nu)
+        wp[i,j] = e**2 * ne[m,j,i] / me / eps / (wr**2 + 1j * wr * nu(Te[m,j,i]))
+
+# plt.plot(x, ne[-1,0,:])
+# plt.yscale('log')
+# sys.exit()
+
+for j in range(len(dY)):
+    for k in range(len(dZ)):
+        Ex[j,k] = Ej(Y[j], Z[k])
+
+print 'Assembling Matrix...'
+for i in range(len(dX)):
+    xi = (np.abs(x*100-X[i])).argmin()
+    for j in range(len(dY)):
+        for k in range(len(dZ)):
+            r = np.sqrt((Y[j+1] - 1.0)**2 + (Z[k+1] - 1.0)**2)
+            rj = (np.abs(y*100 - r)).argmin()
             Mat[i,j,k] = wp[i,rj] * Ex[j,k] * dX[i] * dY[j] * dZ[k]
 
 print 'Integrating Matrix...'
@@ -178,22 +320,13 @@ print 'Result:  dw = {:.2f} MHz, Q = {:.2f}\n'.format(dw,Q)
 t2 = time.time()
 print 'Elapsed Time:  {} sec'.format(int(t2 - t1))
 
-fig = plt.figure()
-
-gs = gridspec.GridSpec(1,1)
-ax = fig.add_subplot(gs[0,0])
-
-ax.spines['right'].set_visible(False)
-ax.spines['top'].set_visible(False)
-
-ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T0), label='no plasma')
-#ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T)-22, label='with plasma', color=color2[1])
-ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T), label='with plasma')
+ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T), label='350 V')
 plt.legend(frameon=False)
 plt.xlabel('Frequency [$GHz$]')
 plt.ylabel('Transmission [$dB$]')
 # plt.ylim([-45,5])
+plt.xlim([9.8,11.7])
 
 gs.tight_layout(fig, rect=[0, 0, 1, 1])
-plt.savefig('Figures/2DAC_T.eps',dpi=300)
+# plt.savefig('Figures/2DAC_T.eps',dpi=300)
 plt.show()

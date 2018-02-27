@@ -6,6 +6,7 @@ import matplotlib.gridspec as gridspec
 import sys
 import time
 from scipy import integrate
+from scipy.interpolate import spline
 
 size = 12
 med_size = 13
@@ -31,7 +32,7 @@ mpl.rc('text', usetex=True)
 
 t1 = time.time()
 
-data = np.load('Data/data.npz')
+data = np.load('Data/2D_1250pulse_100x100_200ns.npz')
 
 x = data['x']
 y = data['y']
@@ -73,9 +74,9 @@ def nu(x):
 
     return np.exp(a+b*y + c*y**2 + d*y**3 + f*y**4 + g*y**5 + h*y**6
                   + i*y**7 + j*y**8) * ninf
-nx = 30
-ny = 30
-nz = 30
+nx = 60
+ny = 80
+nz = 80
 Mat = np.zeros([nx, ny, nz], dtype='complex')
 Ex = np.zeros([ny, nz])
 
@@ -91,49 +92,46 @@ wp = np.zeros([len(x), len(y)], dtype='complex')
 wr = np.pi * 2.9989e8 * (1.0 / 2e-2**2 + 1.0 / 2e-2**2)**0.5
 a0 = wr / 2.0 / 2000.
 
-nt_mi = 30
-t = np.concatenate([np.linspace(-1,0,nt_mi),t])
+# nt_mi = 30
+# t = np.concatenate([np.linspace(-1,0,nt_mi),t])
 
-tt = 51
-nt = len(t[::tt])
+tt = 1
+jmin = np.argmin((t-0.09)**2)
+jmax = np.argmin((t-0.2)**2)
+nt = len(t[jmin:jmax:tt])
 dw = np.zeros(nt, dtype='complex')
 Q = np.zeros(nt)
 Qa = 2000.
 
 wT0 = wr * (((1 - (1j + 1.0) / Qa + 0)**0.5 - 1).real + 1)
-wT = np.array([wT0, wT0+2*np.pi*2e6, wT0+2*np.pi*5e6, wT0+2*np.pi*10e6,
-               wT0+2*np.pi*15e6, wT0+2*np.pi*20e6, wT0+2*np.pi*27e6])
+wT = np.array([wT0, wT0+2*np.pi*50e6, wT0+2*np.pi*75e6, wT0+2*np.pi*100e6,
+               wT0+2*np.pi*125e6, wT0+2*np.pi*150e6, wT0+2*np.pi*200e6])
 T = np.zeros([nt, len(wT)])
 
 n = 0
-m2 = 0
-for m in np.arange(0,len(t),tt):
+for m in np.arange(jmin,jmax,tt):
     val = 0
-    if t[m] > 0:
-        print 'Running at t = {:.2f} us and Vd = {:.2f} V'.format(t[m], Vd[m2])
+    print 'Running at t = {:.3f} us and Vd = {:.2f} V'.format(t[m], Vd[m])
 
-        for i in range(len(x)):
-            for j in range(len(y)):
-                # Plasm freq Term: wp**2 / w**2 / (w**2 + nu**2)
-                wp[i,j] = e**2 * ne[m2,j,i] / me / eps / (wr**2 + 1j * wr * nu(Te[m2,j,i]))
+    for i in range(len(x)):
+        for j in range(len(y)):
+            # Plasm freq Term: wp**2 / w**2 / (w**2 + nu**2)
+            wp[i,j] = e**2 * ne[m,j,i] / me / eps / (wr**2 + 1j * wr * nu(Te[m,j,i]))
 
+    for j in range(len(dY)):
+        for k in range(len(dZ)):
+            Ex[j,k] = Ej(Y[j], Z[k])
+
+    print 'Assembling Matrix...'
+    for i in range(len(dX)):
         for j in range(len(dY)):
             for k in range(len(dZ)):
-                Ex[j,k] = Ej(Y[j], Z[k])
+                r = np.sqrt((Y[j+1] - 1.0)**2 + (Z[k+1] - 1.0)**2)
+                rj = (np.abs(y*1000 - r)).argmin()
+                Mat[i,j,k] = wp[i,rj] * Ex[j,k] * dX[i] * dY[j] * dZ[k]
 
-        print 'Assembling Matrix...'
-        for i in range(len(dX)):
-            xi = (np.abs(x*100 - X[i])).argmin()
-            for j in range(len(dY)):
-                for k in range(len(dZ)):
-                    r = np.sqrt((Y[j+1] - 1.0)**2 + (Z[k+1] - 1.0)**2)
-                    rj = (np.abs(y*100 - r)).argmin()
-                    Mat[i,j,k] = wp[xi,rj] * Ex[j,k] * dX[i] * dY[j] * dZ[k]
-
-        print 'Integrating Matrix...'
-        val = int3D(Mat)
-
-        m2 += tt
+    print 'Integrating Matrix...'
+    val = int3D(Mat)
 
     dw[n] = ((1 - (1j + 1.0) / Qa + val)**0.5 - 1)
     w = wr * (dw[n].real + 1)
@@ -151,43 +149,7 @@ t2 = time.time()
 print 'Elapsed Time:  {} sec'.format(int(t2 - t1))
 
 fig = plt.figure(figsize=(5.25,3))
-gs = gridspec.GridSpec(1,1)
-ax0 = fig.add_subplot(gs[0,0])
-ax1 = ax0.twinx()
-
-ax0.spines['top'].set_visible(False)
-ax1.spines['top'].set_visible(False)
-
-ax0.set_ylabel(r'$\Delta f_\mathrm{res}$ [$MHz$]')
-ax1.set_ylabel(r'Quality Factor')
-ax0.set_xlabel(r'Time [$\mu \,s$]')
-ax0.set_xscale('log')
-
-ax0.plot(t[nt_mi::tt], dw[nt_mi/tt:].real, color=color2[0], label=r'$\Delta f_\mathrm{res}$')
-ax1.plot(t[nt_mi::tt], Q[nt_mi/tt:], color=color2[1], label=r'Q')
-
-ax0.legend(frameon=False, loc=2, bbox_to_anchor = (0.0, 1.075))
-ax1.legend(frameon=False, loc=1, bbox_to_anchor = (1.0, 1.075))
-ax0.set_ylim([-10,275])
-ax1.set_ylim([-100, 2250])
-
-plt.annotate('', xy=(0.17-0.13, 0.04+0.15), xycoords='axes fraction',
-             xytext=(0.17, 0.03), textcoords='axes fraction',
-             arrowprops=dict(arrowstyle="->",connectionstyle="arc3,rad=0.38",
-             color=color2[0]))
-
-plt.annotate('', xy=(0.77+0.15, 0.56), xycoords='axes fraction',
-             xytext=(0.77, 0.725), textcoords='axes fraction',
-             arrowprops=dict(arrowstyle="->",connectionstyle="arc3,rad=0.38",
-             color=color2[1]))
-
-plt.xlim([2e-2,35])
-gs.tight_layout(fig, rect=[0, 0, 1, 1])
-
-# plt.savefig('Figures/2dpulseResQ2.eps',dpi=300)
-
-fig = plt.figure(figsize=(5.25,3))
-gs = gridspec.GridSpec(1,2, hspace=0.0)
+gs = gridspec.GridSpec(1,2,hspace=0)
 gs.set_width_ratios([1.0,0.03])
 ax0 = fig.add_subplot(gs[0,0])
 ax1 = fig.add_subplot(gs[0,1])
@@ -201,15 +163,16 @@ cb = mpl.colorbar.ColorbarBase(ax1, cmap=cmap, norm=norm, ticks=np.arange(0,201,
 cb.outline.set_visible(False)
 cb.ax.set_title(r'$\Delta f$ [$MHz$]')
 
+t2 = np.linspace(t[jmin], t[jmax-1], 500)
 for l in range(len(wT)-1,-1,-1):
-    ax0.plot(t[::tt], 10*np.log10(T[:,l]), color=colors[l],
+    T2 = spline(t[jmin:jmax:tt], 10*np.log10(T[:,l]), t2)
+    ax0.plot(t2, T2, color=colors[l],
              label=r'{}'.format(int((wT[l]-wr)/1e6/2.0/np.pi)))
 ax0.set_xlabel(r'Time [$\mu$s]')
 ax0.set_ylabel(r'Transmission [$dB$]')
-ax0.set_xticks(np.arange(0,22,5))
-ax0.set_xlim([-2,22])
+# ax0.set_xticks(np.arange(0,22,5))
+# ax0.set_xlim([-2,22])
 
 gs.tight_layout(fig, rect=[0, 0, 1, 1])
-# plt.savefig('Figures/2dpulseT.eps',dpi=300)
-
+plt.savefig('Figures/2dpulseT_inz.eps', dpi=300)
 plt.show()

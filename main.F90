@@ -34,21 +34,33 @@ program main
   dt = 5e-6
   t_fin = 100
   t_pr = 0d0
-  t_sv = 1e-2
-  t_sv0 = 1e-2
+  t_sv = 1e-4
+  t_sv0 = 1e-4
   vl = 500 / ph0
   res = 1e7
 
   ! Read input arguments
   call read_in
-  if (rf) then
+  if (rf .ne. -1) then
     rwall = .False.
+    ! PSST setup:
     w = 1e-2 / x0
     ew = 1.25e-3 / x0
+
+    ! Wvg Res setup:
+    ! w = 7.5e-3 / x0
+    ! l = 7.5e-3 / x0
+    ! ew = 1.25e-3 / x0
+
+    ! Taemin's setup:
+    ! l = 650d-6 / x0
+    ! w = 650d-6 / x0
+    ! ew = 65d-6 / x0
+    ! vl = 4d3 / ph0
   end if
 
   ! Initialize grid and arrays
-  ! path = 'Output/'
+  ! path = 'Output/Taemin/'
   call g_init(g, nx, ny, px, py, dof, l, w, ew, trim(path))
   call lapl_init(g)
   call ptcl_init(g)
@@ -116,7 +128,7 @@ program main
       write(*,*)
       write(*,11) ts, g%t, (time2 - time1) / g%dt / float(ts2-ts1) / 60.
       write(*,12) g%dt, t_m
-      write(*,14) Vd_pl * ph0, Id * e / t0, abs((Vd_pl - Vd_mi2) / Vd_pl) / (g%dt * 1d-3) - 1d0
+      write(*,15) Vd_pl * ph0, Id * e / t0!, abs((Vd_pl - Vd_mi2) / Vd_pl) / (g%dt * 1d-3) - 1d0
       t_pr = 0
       time1 = time2
       ts1 = ts
@@ -130,20 +142,20 @@ program main
     if (t_sv <= g%t) then
       call writeOut
       t_sv  = t_sv + t_sv0
-      t_sv0 = t_sv0 * 1.01
-      t_sv0 = min(t_sv0, 1d-1)
+      if (g%t > 2d-1) then
+        t_sv0 = t_sv0 * 1.01
+        t_sv0 = min(t_sv0, 2d-2)
+      end if
     end if
 
-    if ((.not. rf) .and. (g%t > 2d0)) then
+    if ((rf == -1) .and. (g%t > 2d0)) then
       if ((abs((Id - Id_mi) / Id) .le. (g%dt * 1d-3)) .and. &
           (abs((Vd_pl - Vd_mi2) / Vd_pl) .le. (g%dt * 1d-3))) rIdx = rIdx + 1
       Id_mi = Id
       Vd_mi2 = Vd_pl
+      call MPI_Allreduce(MPI_In_Place, rIdx, 1, MPI_Int, MPI_Max, comm, ierr)
+      if ((abs(Vd_pl * ph0) .ge. 600)) call MPI_Abort(comm, 1, ierr)
     end if
-    call MPI_Allreduce(MPI_In_Place, rIdx, 1, MPI_Int, MPI_Max, comm, ierr)
-    ! if (rIdx > 1) exit
-
-    if ((.not. rf) .and. (abs(Vd_pl * ph0) .ge. 600)) call MPI_Abort(comm, 1, ierr)
   end do
 
   if (myId == 0) then
@@ -162,6 +174,7 @@ program main
 11 format('Timestep:', i7, '  Time:', es9.2, '  time/us:', f6.2, ' min')
 12 format('   dT:  ', es9.2, '   tm:', es9.2)
 14 format('   Vd:', f7.2, '       Id:', es9.2, '     diff:' es9.2)
+15 format('   Vd:', f7.2, '       Id:', es9.2)
 9  format('Simulation finished in ', i0, ' hr ', i0, ' min')
 
 contains
@@ -266,7 +279,7 @@ contains
       end if
     end if
 
-    if (.not. rf) then
+    if (rf == -1) then
       if (ny > 1) then
           write(path,41) int(res / 10**floor(log10(res))), floor(log10(res))
       else
