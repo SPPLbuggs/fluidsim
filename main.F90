@@ -60,7 +60,7 @@ program main
   end if
 
   ! Initialize grid and arrays
-  ! path = 'Output/Taemin/'
+  path = 'Output/'
   call g_init(g, nx, ny, px, py, dof, l, w, ew, trim(path))
   call lapl_init(g)
   call ptcl_init(g)

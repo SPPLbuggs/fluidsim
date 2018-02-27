@@ -28,7 +28,7 @@ contains
       Vsrc = Vmax
     else if (rf == 1) then
       ! ** AC **
-      Vsrc = Vmax * cos(pi * g%t)
+      Vsrc = Vmax * sin(pi * g%t)
     else if (rf == 2) then
       ! ** Pulse **
       if (g%t < 2.5d-1) then
