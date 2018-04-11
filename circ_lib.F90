@@ -36,6 +36,18 @@ contains
       else
         Vsrc = 0d0
       end if
+    else if (rf == 3) then
+      ! ** Real Pulse **
+      if (g%t < 2.3d-1) then
+        Vsrc = Vmax * sin(4d0 * pi * g%t)**2
+      else if (g%t < 3.35d-1) then
+        Vsrc = Vmax * (sin(3.81d0 * pi * (g%t + 5.85d-2)) * 7.19d-1 + 2.81d-1)
+      else if (g%t < 8.2d-1) then
+        Vsrc = Vmax * (sin(3.81d0 * pi * (g%t + 1.2d-1) / 3.5d0)**3 * (-4.38d-1))
+      else
+        Vsrc = 0d0
+      end if
+
 
       ! ** Taemin's Pulse **
       ! if (g%t < 20d-3) then

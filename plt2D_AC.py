@@ -28,7 +28,7 @@ plt.rcParams['font.family'] = 'serif'
 plt.rcParams['font.serif'] = ['Computer Modern']
 mpl.rc('text', usetex=True)
 
-data = np.load('Data/2D_350AC_nx80_ny80_80us.npz')
+data = np.load('Data/4Torr/350V/60x60_58us.npz')
 
 x = data['x'] * 1e3
 y = data['y'] * 1e3
@@ -42,7 +42,7 @@ ni = data['ni']
 nm = data['nm']
 ph = data['phi']
 
-tgt = [78.55, 78.8, 79.02]
+tgt = [57]
 ts = np.zeros(len(tgt), dtype='int')
 j = 0
 for i in range(len(t)-1):
@@ -68,7 +68,7 @@ ax1.spines['top'].set_visible(False)
 ax2.spines['top'].set_visible(False)
 plt.setp(ax0.get_xticklabels(), visible=False)
 
-j = 2
+j = 0
 
 v = np.linspace(13.9,18.1,25)
 im = ax0.contourf(x,y,np.maximum(np.log10(ne[ts[j],:,:]), v[0]), v)
@@ -93,10 +93,10 @@ ni_s = spline(x,ni[ts[j],0,:],xnew)
 nm_s = spline(x,nm[ts[j],0,:],xnew)
 nt_s = spline(x,nt[ts[j],0,:],xnew)
 
-ax1.plot(xnew, ne_s,label=r'n$_\mathrm{e}$')
-ax1.plot(xnew, ni_s,label=r'n$_\mathrm{i}$')
-ax1.plot(xnew, nm_s,label=r'n$_\mathrm{m}$')
-ax2.plot(xnew, nt_s,label=r'T$_\mathrm{e}$', color=color2[3])
+ax1.plot(x, ne[ts[j],0,:], label=r'n$_\mathrm{e}$')
+ax1.plot(x, ni[ts[j],0,:], label=r'n$_\mathrm{i}$')
+ax1.plot(x, nm[ts[j],0,:], label=r'n$_\mathrm{m}$')
+ax2.plot(x, nt[ts[j],0,:], label=r'T$_\mathrm{e}$', color=color2[3])
 ax1.set_yscale('log')
 ax1.set_xlabel(r'X [$mm$]')
 ax1.set_ylabel(r'Density [$m^{-3}$]')
@@ -126,7 +126,7 @@ ax1.annotate('', xy=(7.5, 7.6e15), xytext=(7.5+.73, 2e16),
              color=color2[3]))
 
 gs.tight_layout(fig, rect=[0, 0, 1, 1])
-plt.savefig('Figures/2dAC.eps', dpi = 300)
+# plt.savefig('Figures/2dAC.eps', dpi = 300)
 
 ## Figure 2:: IV
 # fig = plt.figure(figsize=(5,3))

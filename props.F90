@@ -35,13 +35,13 @@ module props
 
   ! case properties
   real(8), parameter:: Tg     = 300, & ! kelvin
-                       p      = 3,   & ! torr
+                       p      = 2,   & ! torr
                        ninf   = p * 101325d0 / 760d0 / kb / Tg * x0**3, &
                        n_zero = 1e8 * x0**3
-  real(8) :: n_init = 1e12 * x0**3
+  real(8) :: n_init = 1e11 * x0**3
 
   integer :: rf = 0
-  logical :: unif = .True., cyl = .True., rwall = .True.
+  logical :: unif = .True., cyl = .True., rwall = .False.
 
 contains
 

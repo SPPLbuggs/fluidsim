@@ -28,9 +28,10 @@ program main
   px = 1
   py = 1
   dof = 1
-  l  = 1e-2   / x0
-  w  = 1.5e-2 / x0
-  ew = 2e-2   / x0
+  l  = 7.9e-3 / x0
+  w  = 7.9e-3 / x0
+  ! ew = 1.875e-3   / x0
+  ew = 1.0e-3 / x0
   dt = 5e-6
   t_fin = 100
   t_pr = 0d0
@@ -41,26 +42,9 @@ program main
 
   ! Read input arguments
   call read_in
-  if (rf .ne. -1) then
-    rwall = .False.
-    ! PSST setup:
-    w = 1e-2 / x0
-    ew = 1.25e-3 / x0
-
-    ! Wvg Res setup:
-    ! w = 7.5e-3 / x0
-    ! l = 7.5e-3 / x0
-    ! ew = 1.25e-3 / x0
-
-    ! Taemin's setup:
-    ! l = 650d-6 / x0
-    ! w = 650d-6 / x0
-    ! ew = 65d-6 / x0
-    ! vl = 4d3 / ph0
-  end if
 
   ! Initialize grid and arrays
-  path = 'Output/'
+  ! path = 'Output/'
   call g_init(g, nx, ny, px, py, dof, l, w, ew, trim(path))
   call lapl_init(g)
   call ptcl_init(g)
@@ -122,7 +106,7 @@ program main
     end if
 
     ! Print out some information
-    if ((t_pr >= 1.5d0) .and. (myId == 0)) then
+    if ((t_pr >= 10d0) .and. (myId == 0)) then
       call cpu_time(time2)
       ts2 = ts
       write(*,*)
@@ -133,7 +117,7 @@ program main
       time1 = time2
       ts1 = ts
 
-    else if (mod(ts,50) == 0) then
+    else if (mod(ts,100) == 0) then
       call cpu_time(time2)
       t_pr = time2 - time1
     end if
@@ -173,7 +157,6 @@ program main
 
 11 format('Timestep:', i7, '  Time:', es9.2, '  time/us:', f6.2, ' min')
 12 format('   dT:  ', es9.2, '   tm:', es9.2)
-14 format('   Vd:', f7.2, '       Id:', es9.2, '     diff:' es9.2)
 15 format('   Vd:', f7.2, '       Id:', es9.2)
 9  format('Simulation finished in ', i0, ' hr ', i0, ' min')
 
@@ -287,7 +270,7 @@ contains
       end if
     else
       if (ny > 1) then
-          write(path,43) int(vl*ph0/10.0)*10
+          write(path,43) int(p), int(vl*ph0/10.0)*10, nx, ny
       else
           write(path,44) int(vl*ph0/10.0)*10
       end if
@@ -300,7 +283,7 @@ contains
 
     41 format('Output/2d_res_',i0,'e',i0,'/')
     42 format('Output/1d_res_',i0,'e',i0,'/')
-    43 format('Output/2d_pulse_',i0,'V/')
+    43 format('Output/',i0,'Torr/',i0,'V_',i0,'x',i0,'/')
     44 format('Output/1d_pulse_',i0,'V/')
   end subroutine
 

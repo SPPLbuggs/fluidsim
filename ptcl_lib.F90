@@ -24,7 +24,7 @@ contains
     km = 0
     ni = n_init
     ne = n_init
-    nt = n_init / ph0 / 1d2
+    nt = ne * Tg * kb / e / ph0
     nm = n_init
   end subroutine
 
@@ -105,7 +105,7 @@ contains
                dfluxt_dx = 0, dfluxt_dy = 0, fluxt_x(2) = 0, fluxt_y(2) = 0, &
                dfluxm_dx = 0, dfluxm_dy = 0, fluxm_x(2) = 0, fluxm_y(2) = 0, &
                term_sie, term_st1, term_st2, term_st3, term_sm, &
-               k_ir, k_ex, k_sc, k_si, nu, ve
+               k_ir, k_ex, k_sc, k_si, nu, ve, beta
 
     ! X-dir fields:
     if (g%type_x(i-1,j-1) == -1) then
@@ -442,6 +442,7 @@ contains
     k_si = get_k_si(Te(2))
     k_ex = get_k_ex(Te(2))
     nu   = get_nu(Te(2))
+    beta = get_beta(Te(2))
 
     ! evaluate source terms
     term_sie =   k_ir * ninf * ne(i,j,2) &
@@ -461,13 +462,13 @@ contains
     term_st1 = - (fluxe_x(1) * Ex(1) + fluxe_y(1) * Ey(1))
 
     ! -me/mg nu_e (Te - Tg)
-    term_st2 = - nt(i,j,2) * nu * me / mi
+    term_st2 = - ne(i,j,2) * nu * me / mi * (Te(2) / 1.5d0 - Tg * kb / e / ph0)
 
     ! reactions
     term_st3 = - h_ir * k_ir * ninf * ne(i,j,2) &
                - h_si * k_si * nm(i,j,2) * ne(i,j,2) &
-               - h_ex * k_ex * ninf * ne(i,j,2) &
-               - h_sc * k_sc * nm(i,j,2) * ne(i,j,2)
+               - h_ex * k_ex * ninf * ne(i,j,2)! &
+               !- h_sc * k_sc * nm(i,j,2) * ne(i,j,2)
 
     ! evaluate expression
     ki(i,j,stage) = -dfluxi_dx - dfluxi_dy + term_sie

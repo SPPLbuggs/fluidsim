@@ -1,37 +1,13 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-import matplotlib.colorbar as clb
-import matplotlib.gridspec as gridspec
 import sys
 import time
 from scipy import integrate
-
-size = 12
-med_size = 13
-big_size = 13
-
-plt.rc('font', size=size)
-plt.rc('axes', titlesize=size)
-plt.rc('axes', labelsize=med_size)
-plt.rc('xtick', labelsize=size)
-plt.rc('ytick', labelsize=size)
-plt.rc('legend', fontsize=size)
-plt.rc('figure', titlesize=big_size)
-plt.rcParams['figure.figsize'] = (4.5, 3)
-
-cm_subsection = np.linspace(0.0, 1.0, 7)
-colors = [ mpl.cm.viridis(x) for x in cm_subsection ]
-color2= plt.rcParams['axes.prop_cycle'].by_key()['color']
-
-# Uncomment for LaTex fonts:
-plt.rcParams['font.family'] = 'serif'
-plt.rcParams['font.serif'] = ['Computer Modern']
-mpl.rc('text', usetex=True)
+from scipy import interpolate
 
 t1 = time.time()
 
 data = np.load('Data/data.npz')
+# data = np.load('Data/2Torr/1600V/60x60_40us.npz')
 
 x = data['x']
 y = data['y']
@@ -49,9 +25,9 @@ Tg = 300.0
 p = 3.0
 ninf = p * 101325.0 / 760.0 / kb / Tg
 
-xl = 1.0e-2
-yl = 2.0e-2
-zl = 2.0e-2
+xl = 7.9e-3
+yl = 13.6e-3
+zl = 15.8e-3
 
 Ej = lambda y, z: 4.0 / (xl * yl * zl) * (np.sin(np.pi * y / yl) * np.sin(np.pi * z / zl))**2
 
@@ -92,41 +68,54 @@ dZ = ((Z[2:] - Z[1:-1]) + (Z[1:-1] - Z[:-2])) / 2.0
 
 wp = np.zeros([len(x), len(y)], dtype='complex')
 wr = np.pi * 2.9989e8 * (1.0 / yl**2 + 1.0 / zl**2)**0.5
+print 'Res Freq = {:.2f} GHz'.format(wr / np.pi / 2.0 / 1e9)
 
-tt = 11
-nt = len(t[::tt])
+nt = 40
+# tgt = np.logspace(np.log10(3e-2), np.log10(t[-1]), nt)
+tgt = np.logspace(np.log10(1e-1), np.log10(20.), nt)
+ii = np.unique([np.argmax(t - i > 0) for i in tgt])
+nt = len(ii)
+
 dw = np.zeros(nt, dtype='complex')
-Qa = 2000.
+Qa = 1912.
 
-n = 0
-for m in np.arange(0,len(t),tt):
+for j in range(len(dY)):
+    for k in range(len(dZ)):
+        Ex[j,k] = Ej(Y[j], Z[k])
+
+for n in range(nt):
+    m = ii[n]
     print 'Running at t = {:.2f} us and Vd = {:.2f} V'.format(t[m], Vd[m])
 
     for i in range(len(x)):
         for j in range(len(y)):
             # Plasm freq Term: wp**2 / w**2 / (w**2 + nu**2)
-            wp[i,j] = e**2 * ne[m,j,i] / me / eps / (wr**2 + 1j * wr * nu(Te[m,j,i]))
-
-    for j in range(len(dY)):
-        for k in range(len(dZ)):
-            Ex[j,k] = Ej(Y[j], Z[k])
+            wp[i,j] = e**2 * ne[m,j,i] / me / eps / (wr**2 + 1j * wr * nu(Te[m,j,i]) * 2.0 * np.pi)
 
     print 'Assembling Matrix...'
     for i in range(len(dX)):
-        xi = (np.abs(x - X[i])).argmin()
+        # xi = (np.abs(x - X[i])).argmin()
+        xi = np.argmax(x - X[i] > 0) - 1
+
         for j in range(len(dY)):
             for k in range(len(dZ)):
-                r = np.sqrt((Y[j+1] - yl/2.0)**2 + (Z[k+1] - zl/2.0)**2)
-                rj = (np.abs(y - r)).argmin()
-                Mat[i,j,k] = wp[xi,rj] * Ex[j,k] * dX[i] * dY[j] * dZ[k]
+                Rtgt = np.sqrt((Y[j+1] - yl/2.0)**2 + (Z[k+1] - zl/2.0)**2)
+                rj = np.argmax(y - Rtgt > 0) - 1
+                Wp1 = wp[xi,rj] + (Rtgt - y[rj]) * (wp[xi,rj+1] - wp[xi,rj]) / (y[rj+1] - y[rj])
+                Wp2 = wp[xi+1,rj] + (Rtgt - y[rj]) * (wp[xi+1,rj+1] - wp[xi+1,rj]) / (y[rj+1] - y[rj])
+                Wp = Wp1 + (X[i] - x[xi]) * (Wp2 - Wp1) / (x[xi+1] - x[xi])
+                Mat[i,j,k] = Wp * Ex[j,k] * dX[i] * dY[j] * dZ[k]
+                # rj = np.argmin((R - r)**2)
+                # rj = (np.abs(y - r)).argmin()
+                # Mat[i,j,k] = wp[xi,rj] * Ex[j,k] * dX[i] * dY[j] * dZ[k]
+                # Mat[i,j,k] = (splineR(X[i], R) + splineI(X[i], R)* 1j) * Ex[j,k] * dX[i] * dY[j] * dZ[k]
 
     print 'Integrating Matrix...'
     val = int3D(Mat)
 
     dw[n] = ((1 - (1j + 1.0) / Qa + val)**0.5 - 1)
     print 'Result:  dw = {:.2f} MHz\n'.format(dw[n] * wr / np.pi / 2.0 / 1e6)
-    n = n+1
 
-np.savez('Data/wvgResData.npz', dw=dw, t=t[::tt])
+np.savez('Data/wvgResData.npz', dw=dw, t=t[ii])
 t2 = time.time()
 print 'Elapsed Time:  {} sec'.format(int(t2 - t1))

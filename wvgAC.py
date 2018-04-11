@@ -8,9 +8,9 @@ import time
 from scipy import integrate
 from scipy.interpolate import spline
 
-size = 12
-med_size = 13
-big_size = 13
+size = 14
+med_size = 15
+big_size = 16
 
 plt.rc('font', size=size)
 plt.rc('axes', titlesize=size)
@@ -89,7 +89,11 @@ def mu(x):
 # print Vrms, Irms, ne_rms, mue
 
 
-Ej = lambda y, z: (np.sin(np.pi * y / 2.0) * np.sin(np.pi * z / 2.0))**2
+xl = 7.5e-3
+yl = 15e-3
+zl = 15e-3
+
+Ej = lambda y, z: 4.0 / (xl * yl * zl) * (np.sin(np.pi * y / yl) * np.sin(np.pi * z / zl))**2
 
 def int2D(A):
     return np.trapz(np.trapz(A, axis=1), axis=0)
@@ -113,22 +117,7 @@ def nu(x):
     return np.exp(a+b*y + c*y**2 + d*y**3 + f*y**4 + g*y**5 + h*y**6
                   + i*y**7 + j*y**8) * ninf
 
-nx = 80
-ny = 120
-nz = 120
-Mat = np.zeros([nx, ny, nz], dtype='complex')
-Ex = np.zeros([ny, nz])
-
-X = np.linspace(0,1,nx+2)
-Y = np.linspace(0,2,ny+2)
-Z = np.linspace(0,2,nz+2)
-
-dX = ((X[2:] - X[1:-1]) + (X[1:-1] - X[:-2])) / 2.0
-dY = ((Y[2:] - Y[1:-1]) + (Y[1:-1] - Y[:-2])) / 2.0
-dZ = ((Z[2:] - Z[1:-1]) + (Z[1:-1] - Z[:-2])) / 2.0
-
-
-data = np.load('Data/2D_315AC_50x50.npz')
+data = np.load('Data/4Torr/350V/60x60_58us.npz')
 
 x = data['x']
 y = data['y']
@@ -138,14 +127,28 @@ Id = data['Id']
 ne = data['ne']
 Te = data['nt']
 
+nx = 60
+ny = 60
+nz = 60
+Mat = np.zeros([nx, ny, nz], dtype='complex')
+Ex = np.zeros([ny, nz])
+
+X = np.linspace(0,xl,nx+2)
+Y = np.linspace(0,yl,ny+2)
+Z = np.linspace(0,zl,nz+2)
+
+dX = ((X[2:] - X[1:-1]) + (X[1:-1] - X[:-2])) / 2.0
+dY = ((Y[2:] - Y[1:-1]) + (Y[1:-1] - Y[:-2])) / 2.0
+dZ = ((Z[2:] - Z[1:-1]) + (Z[1:-1] - Z[:-2])) / 2.0
+
 wp = np.zeros([len(x), len(y)], dtype='complex')
-wr = np.pi * 2.9989e8 * (1.0 / 2e-2**2 + 1.0 / 2e-2**2)**0.5
-a0 = wr / 2.0 / 2000.
+wr = np.pi * 2.9989e8 * (1.0 / yl**2 + 1.0 / zl**2)**0.5
 
 nt = 1000
+a0 = wr / 2.0 / 2000.
 T0 = np.zeros([nt])
 T = np.zeros([nt])
-wT = np.linspace(10,12,nt)*2.0*np.pi*1e9
+wT = np.linspace(13,16,nt)*2.0*np.pi*1e9
 print 'Res Freq = {:.2f} GHz'.format(wr / np.pi / 2.0 / 1e9)
 
 m = -1
@@ -164,11 +167,11 @@ for j in range(len(dY)):
 
 print 'Assembling Matrix...'
 for i in range(len(dX)):
-    xi = (np.abs(x*100-X[i])).argmin()
+    xi = (np.abs(x - X[i])).argmin()
     for j in range(len(dY)):
         for k in range(len(dZ)):
-            r = np.sqrt((Y[j+1] - 1.0)**2 + (Z[k+1] - 1.0)**2)
-            rj = (np.abs(y*100 - r)).argmin()
+            r = np.sqrt((Y[j+1] - yl/2.0)**2 + (Z[k+1] - zl/2.0)**2)
+            rj = (np.abs(y - r)).argmin()
             Mat[i,j,k] = wp[xi,rj] * Ex[j,k] * dX[i] * dY[j] * dZ[k]
 
 print 'Integrating Matrix...'
@@ -196,9 +199,11 @@ ax.spines['right'].set_visible(False)
 ax.spines['top'].set_visible(False)
 
 ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T0), label='0 V')
-ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T), label='315 V')
+ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T), label='350 V')
 
-data = np.load('Data/2D_325AC_100x100.npz')
+
+### Second Plot ###
+data = np.load('Data/4Torr/400V/60x60_48us.npz')
 
 x = data['x']
 y = data['y']
@@ -208,14 +213,28 @@ Id = data['Id']
 ne = data['ne']
 Te = data['nt']
 
+nx = 60
+ny = 60
+nz = 60
+Mat = np.zeros([nx, ny, nz], dtype='complex')
+Ex = np.zeros([ny, nz])
+
+X = np.linspace(0,xl,nx+2)
+Y = np.linspace(0,yl,ny+2)
+Z = np.linspace(0,zl,nz+2)
+
+dX = ((X[2:] - X[1:-1]) + (X[1:-1] - X[:-2])) / 2.0
+dY = ((Y[2:] - Y[1:-1]) + (Y[1:-1] - Y[:-2])) / 2.0
+dZ = ((Z[2:] - Z[1:-1]) + (Z[1:-1] - Z[:-2])) / 2.0
+
 wp = np.zeros([len(x), len(y)], dtype='complex')
-wr = np.pi * 2.9989e8 * (1.0 / 2e-2**2 + 1.0 / 2e-2**2)**0.5
-a0 = wr / 2.0 / 2000.
+wr = np.pi * 2.9989e8 * (1.0 / yl**2 + 1.0 / zl**2)**0.5
 
 nt = 1000
+a0 = wr / 2.0 / 2000.
 T0 = np.zeros([nt])
 T = np.zeros([nt])
-wT = np.linspace(10,12,nt)*2.0*np.pi*1e9
+wT = np.linspace(13,16,nt)*2.0*np.pi*1e9
 print 'Res Freq = {:.2f} GHz'.format(wr / np.pi / 2.0 / 1e9)
 
 m = -1
@@ -224,21 +243,17 @@ for i in range(len(x)):
         # Plasm freq Term: wp**2 / (wr**2 + 1j * wr * nu)
         wp[i,j] = e**2 * ne[m,j,i] / me / eps / (wr**2 + 1j * wr * nu(Te[m,j,i]))
 
-# plt.plot(x, ne[-1,0,:])
-# plt.yscale('log')
-# sys.exit()
-
 for j in range(len(dY)):
     for k in range(len(dZ)):
         Ex[j,k] = Ej(Y[j], Z[k])
 
 print 'Assembling Matrix...'
 for i in range(len(dX)):
-    xi = (np.abs(x*100-X[i])).argmin()
+    xi = (np.abs(x - X[i])).argmin()
     for j in range(len(dY)):
         for k in range(len(dZ)):
-            r = np.sqrt((Y[j+1] - 1.0)**2 + (Z[k+1] - 1.0)**2)
-            rj = (np.abs(y*100 - r)).argmin()
+            r = np.sqrt((Y[j+1] - yl/2.0)**2 + (Z[k+1] - zl/2.0)**2)
+            rj = (np.abs(y - r)).argmin()
             Mat[i,j,k] = wp[xi,rj] * Ex[j,k] * dX[i] * dY[j] * dZ[k]
 
 print 'Integrating Matrix...'
@@ -256,77 +271,19 @@ for l in range(nt):
 
 dw = wr * dw / np.pi / 2.0 / 1e6
 print 'Result:  dw = {:.2f} MHz, Q = {:.2f}\n'.format(dw,Q)
-ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T), label='325 V')
 
-data = np.load('Data/2D_350AC_nx80_ny80_80us.npz')
 
-x = data['x']
-y = data['y']
-t = data['t']
-Vd = data['Vd']
-Id = data['Id']
-ne = data['ne']
-Te = data['nt']
-
-wp = np.zeros([len(x), len(y)], dtype='complex')
-wr = np.pi * 2.9989e8 * (1.0 / 2e-2**2 + 1.0 / 2e-2**2)**0.5
-a0 = wr / 2.0 / 2000.
-
-nt = 1000
-T0 = np.zeros([nt])
-T = np.zeros([nt])
-wT = np.linspace(10,12,nt)*2.0*np.pi*1e9
-print 'Res Freq = {:.2f} GHz'.format(wr / np.pi / 2.0 / 1e9)
-
-m = -1
-for i in range(len(x)):
-    for j in range(len(y)):
-        # Plasm freq Term: wp**2 / (wr**2 + 1j * wr * nu)
-        wp[i,j] = e**2 * ne[m,j,i] / me / eps / (wr**2 + 1j * wr * nu(Te[m,j,i]))
-
-# plt.plot(x, ne[-1,0,:])
-# plt.yscale('log')
-# sys.exit()
-
-for j in range(len(dY)):
-    for k in range(len(dZ)):
-        Ex[j,k] = Ej(Y[j], Z[k])
-
-print 'Assembling Matrix...'
-for i in range(len(dX)):
-    xi = (np.abs(x*100-X[i])).argmin()
-    for j in range(len(dY)):
-        for k in range(len(dZ)):
-            r = np.sqrt((Y[j+1] - 1.0)**2 + (Z[k+1] - 1.0)**2)
-            rj = (np.abs(y*100 - r)).argmin()
-            Mat[i,j,k] = wp[i,rj] * Ex[j,k] * dX[i] * dY[j] * dZ[k]
-
-print 'Integrating Matrix...'
-val = int3D(Mat)
-
-Qa = 2000.
-dw = ((1 - (1j + 1.0) / Qa + val)**0.5 - 1)
-w = wr * (dw.real + 1)
-Q = -(dw.real + 1.0) / dw.imag / 2.0
-
-for l in range(nt):
-    T[l] = 1.0 / Qa**2 / ((wT[l]/w - w/wT[l])**2 + (1.0/Q)**2)
-
-    T0[l] = 1.0 / Qa**2 / ((wT[l]/wr - wr/wT[l])**2 + (1.0/Qa)**2)
-
-dw = wr * dw / np.pi / 2.0 / 1e6
-print 'Result:  dw = {:.2f} MHz, Q = {:.2f}\n'.format(dw,Q)
+ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T), label='400 V')
 
 t2 = time.time()
 print 'Elapsed Time:  {} sec'.format(int(t2 - t1))
 
-ax.plot(wT / 2.0 / np.pi / 1e9, 10*np.log10(T), label='350 V')
 plt.legend(frameon=False)
 plt.xlabel('Frequency [$GHz$]')
 plt.ylabel('Transmission [$dB$]')
 # plt.ylim([-45,5])
-plt.xlim([9.8,11.7])
+# plt.xlim([9.8,11.7])
 
 gs.tight_layout(fig, rect=[0, 0, 1, 1])
-# plt.savefig('Figures/2DAC_T.eps',dpi=300)
+plt.savefig('Figures/2DAC_T.eps',dpi=300)
 plt.show()

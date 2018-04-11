@@ -3,7 +3,8 @@ from scipy.io import FortranFile
 import glob
 import sys
 
-path = 'Output/2d_pulse_1400V/'
+path = 'Output/2Torr/1780V_42x42/'
+# path = 'Output/'
 
 x = np.fromfile(path + 'meshx.dat',dtype=float)
 y = np.fromfile(path + 'meshy.dat',dtype=float)

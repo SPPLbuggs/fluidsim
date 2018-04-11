@@ -24,12 +24,12 @@ plt.rcParams['figure.figsize'] = (4.5, 3)
 # mpl.rc('text', usetex=True)
 
 # Use log time scale
-ylog = False#True
+ylog = True
 
 cm_subsection = np.linspace(0.0, 1.0, 4)
 colors = [ mpl.cm.viridis(x) for x in cm_subsection ]
 
-path = 'Output/2d_pulse_1600V/'
+path = 'Output/2Torr/1780V_42x40/'
 if len(sys.argv) > 1:
     d = sys.argv[1]
     res = sys.argv[2]
@@ -306,6 +306,7 @@ if (ny > 1):
     ax0.spines['top'].set_visible(False)
 
     # im = ax0.contourf(y,x,f2[-1,:,:].T, 30)
+    # im = ax0.pcolormesh(y, x, f2[-1,:,:].T)
     im = ax0.pcolormesh(y, x, np.log10(f2[-1,:,:]).T) #, shading='gouraud')
     # im = ax0.contourf(y, x, np.log10(f2[-1,:,:].T), 30)
     fig.colorbar(im, cax = cbax)

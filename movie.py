@@ -27,7 +27,7 @@ plt.rc('figure', titlesize=big_size)
 plt.rcParams['figure.figsize'] = (4.5, 3)
 # plt.rcParams['figure.autolayout'] = True
 
-path = 'Output/2d_pulse_1350V/'
+path = 'Output/2Torr/1780V_60x60/'
 x = np.fromfile(path + 'meshx.dat',dtype=float)
 y = np.fromfile(path + 'meshy.dat',dtype=float)
 t = np.fromfile(path + 'time.dat', dtype=float)
@@ -44,7 +44,7 @@ ne2 = np.zeros([nt, ny*2, nx])
 ne2[:,:ny,:] = ne[:,::-1,:]
 ne2[:,ny:,:] = ne
 
-# ne2 = np.log10(ne2)
+ne2 = np.log10(ne2)
 x2 = np.concatenate([x[::-1],x])
 
 fig = plt.figure(figsize=(7,3.5))
@@ -76,13 +76,13 @@ fig.colorbar(im, ax=ax0)
 gs.tight_layout(fig, rect=[0, 0, 1, 1])
 
 def anim(i):
-    j = 10*i+100
+    j = 5*i+100
     im.set_array(ne2[j,:,:].T)
     tx.set_text(r'Electron Density : t = {:.2f} $\mu$s'.format(t[j]))
     im.autoscale()
     return im
 
-ani = animation.FuncAnimation(fig, anim, frames=nt/10-100, interval=50, blit=False)
+ani = animation.FuncAnimation(fig, anim, frames=nt/5-100, interval=50, blit=False)
 
 # fig = plt.figure(figsize=(6, 3))
 # gs = gridspec.GridSpec(1, 1)
