@@ -8,7 +8,7 @@ program main
 
   type(grid) :: g
   integer :: ts = 0, ts1, ts2, nx, ny, dof, lerr, rIdx = 1
-  real(8) :: l, w, ew, vl, dt, t_fin, t_pr, t_sv, t_sv0, &
+  real(8) :: l, w, ew, gap, vl, dt, t_fin, t_pr, t_sv, t_sv0, &
              sim_start, time1, time2, Id_mi = 0, Vd_mi2 = 0
   character(80):: path
 
@@ -23,15 +23,15 @@ program main
   ts1 = 0
 
   ! Default properties
-  nx = 100
+  nx = 40
   ny = 1
   px = 1
   py = 1
   dof = 1
   l  = 7.9e-3 / x0
   w  = 7.9e-3 / x0
-  ! ew = 1.875e-3   / x0
   ew = 1.0e-3 / x0
+  gap = 2.0e-3 / x0
   dt = 5e-6
   t_fin = 100
   t_pr = 0d0
@@ -44,8 +44,8 @@ program main
   call read_in
 
   ! Initialize grid and arrays
-  ! path = 'Output/'
-  call g_init(g, nx, ny, px, py, dof, l, w, ew, trim(path))
+  ! path = 'Output/temp'
+  call g_init(g, nx, ny, px, py, dof, l, w, ew, gap, trim(path))
   call lapl_init(g)
   call ptcl_init(g)
   call circ_init(vl)
@@ -60,6 +60,8 @@ program main
     ! Solve ne system
     t_m = 1e9
     if (ts > 1) call ptcl_step(g, ph)
+
+    call circ_step(g, 5, ph, ni(:,:,2), ne(:,:,2), nt(:,:,2))
 
     ! Solve ph system
     call lapl_solve(g, ne(:,:,1), ni(:,:,1), nt(:,:,1), sig_pl, lerr)
@@ -112,7 +114,7 @@ program main
       write(*,*)
       write(*,11) ts, g%t, (time2 - time1) / g%dt / float(ts2-ts1) / 60.
       write(*,12) g%dt, t_m
-      write(*,15) Vd_pl * ph0, Id * e / t0!, abs((Vd_pl - Vd_mi2) / Vd_pl) / (g%dt * 1d-3) - 1d0
+      write(*,15) Vd_pl * ph0, Ida * e / t0, Idc * e / t0
       t_pr = 0
       time1 = time2
       ts1 = ts
@@ -132,14 +134,14 @@ program main
       end if
     end if
 
-    if ((rf == -1) .and. (g%t > 2d0)) then
-      if ((abs((Id - Id_mi) / Id) .le. (g%dt * 1d-3)) .and. &
-          (abs((Vd_pl - Vd_mi2) / Vd_pl) .le. (g%dt * 1d-3))) rIdx = rIdx + 1
-      Id_mi = Id
-      Vd_mi2 = Vd_pl
-      call MPI_Allreduce(MPI_In_Place, rIdx, 1, MPI_Int, MPI_Max, comm, ierr)
-      if ((abs(Vd_pl * ph0) .ge. 600)) call MPI_Abort(comm, 1, ierr)
-    end if
+    ! if ((rf == -1) .and. (g%t > 2d0)) then
+    !   if ((abs((Id - Id_mi) / Id) .le. (g%dt * 1d-3)) .and. &
+    !       (abs((Vd_pl - Vd_mi2) / Vd_pl) .le. (g%dt * 1d-3))) rIdx = rIdx + 1
+    !   Id_mi = Id
+    !   Vd_mi2 = Vd_pl
+    !   call MPI_Allreduce(MPI_In_Place, rIdx, 1, MPI_Int, MPI_Max, comm, ierr)
+    !   if ((abs(Vd_pl * ph0) .ge. 600)) call MPI_Abort(comm, 1, ierr)
+    ! end if
   end do
 
   if (myId == 0) then
@@ -157,7 +159,7 @@ program main
 
 11 format('Timestep:', i7, '  Time:', es9.2, '  time/us:', f6.2, ' min')
 12 format('   dT:  ', es9.2, '   tm:', es9.2)
-15 format('   Vd:', f7.2, '       Id:', es9.2)
+15 format('   Vd:', f7.2, '       Ida:', es9.2, '       Idc:', es9.2)
 9  format('Simulation finished in ', i0, ' hr ', i0, ' min')
 
 contains
@@ -304,9 +306,14 @@ contains
     if (myId == 0) call MPI_File_Write(fh, Vd_pl*ph0, 1, etype, stat, ierr)
     call MPI_File_Close(fh, ierr)
 
-    call MPI_File_Open(comm, trim(path)//'id.dat', &
+    call MPI_File_Open(comm, trim(path)//'ida.dat', &
         MPI_MODE_WRonly + MPI_Mode_Append,  info, fh, ierr)
-    if (myId == 0) call MPI_File_Write(fh, Id*e/t0, 1, etype, stat, ierr)
+    if (myId == 0) call MPI_File_Write(fh, Ida*e/t0, 1, etype, stat, ierr)
+    call MPI_File_Close(fh, ierr)
+
+    call MPI_File_Open(comm, trim(path)//'idc.dat', &
+        MPI_MODE_WRonly + MPI_Mode_Append,  info, fh, ierr)
+    if (myId == 0) call MPI_File_Write(fh, Idc*e/t0, 1, etype, stat, ierr)
     call MPI_File_Close(fh, ierr)
 
     call MPI_File_Open(comm, trim(path)//'dt.dat', &

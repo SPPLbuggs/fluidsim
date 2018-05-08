@@ -331,6 +331,23 @@ contains
                         ni(i,j), 0d0)
           call get_flux(flxe(2), Ey(2), g%dy(j), -1, mue(2), De(2), &
                         ne(i,j), 0d0)
+        else if (g%type_y(i-1,j-1) == 2) then
+          if (ph(i,j+1) > ph(i,j)) then
+              a = 1d0 ! electrons drift
+          else
+              a = 0d0 ! ions drift
+          end if
+
+          mue(2) = get_mue(Te(2))
+          ve = sqrt((16d0 * e * ph0 * Te(2)) / (3d0 * pi * me)) * t0 / x0
+
+          ! Flux at i + 1/2
+          flxi(2) = (1d0 - a) * mui * Ey(2) * ni(i,j) &
+                    + 2.5d-1 * vi * ni(i,j)
+
+          flxe(2) = - a * mue(2) * Ey(2) * ne(i,j) &
+                    + 2.5d-1 * ve * ne(i,j) &
+                    - gam * flxi(2)
         else
           flxi(2) = 0d0
           flxe(2) = 0d0
@@ -573,7 +590,7 @@ contains
         else
           A(k) = A(k) - 1d0 / g%dy(j-1) / g%dly(j-1)
         end if
-      else if (g%type_y(i-1,j-1) .ge. 1 ) then
+      else if (g%type_y(i-1,j-1) .eq. 1 ) then
         if (cyl) then
           A(k) = A(k) - 1d0 / g%dy(j-1) / g%dly(j-1) * (g%r(j) + g%r(j-1)) &
                  / 2d0 / g%r(j)

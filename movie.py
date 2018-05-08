@@ -27,9 +27,10 @@ plt.rc('figure', titlesize=big_size)
 plt.rcParams['figure.figsize'] = (4.5, 3)
 # plt.rcParams['figure.autolayout'] = True
 
-path = 'Output/2Torr/1780V_60x60/'
-x = np.fromfile(path + 'meshx.dat',dtype=float)
-y = np.fromfile(path + 'meshy.dat',dtype=float)
+path = 'Output/2Torr/1780V_60x50/'
+# path = 'Output/'
+x = np.fromfile(path + 'meshx.dat',dtype=float) *1e3
+y = np.fromfile(path + 'meshy.dat',dtype=float) *1e3
 t = np.fromfile(path + 'time.dat', dtype=float)
 
 nx = len(x)
@@ -44,14 +45,14 @@ ne2 = np.zeros([nt, ny*2, nx])
 ne2[:,:ny,:] = ne[:,::-1,:]
 ne2[:,ny:,:] = ne
 
-ne2 = np.log10(ne2)
-x2 = np.concatenate([x[::-1],x])
+# ne2 = np.log10(ne2)
+y2 = np.concatenate([-1*y[::-1],y])
 
 fig = plt.figure(figsize=(7,3.5))
 gs = gridspec.GridSpec(1,1)
 ax0 = fig.add_subplot(gs[0,0])
 
-im = ax0.imshow(ne2[0,:,:].T, cmap='viridis', animated=True, origin='lower') #interpolation='bilinear', vmin = 13.8, vmax = 17.2)
+im = ax0.imshow(ne2[0,:,:].T, cmap='viridis', animated=True, origin='lower') #interpolation='bicubic')#, vmin = 13.8, vmax = 17.2) vmin=14.7, vmax=18.3,
 ax0.set_xlabel(r'R [$mm$]')
 ax0.set_ylabel(r'X [$mm$]')
 tx = ax0.set_title(r'Electron Density, t = 0.00 $\mu$s')
@@ -75,19 +76,25 @@ fig.colorbar(im, ax=ax0)
 
 gs.tight_layout(fig, rect=[0, 0, 1, 1])
 
+nt = 36
+# tgt = np.logspace(np.log10(3e-2), np.log10(t[-1]), nt)
+tgt = np.linspace(0.15, 0.5, nt)
+ii = np.unique([np.argmax(t - i > 0) for i in tgt])
+
 def anim(i):
-    j = 5*i+100
+    # j = 5*(i+100)
+    j = ii[i]
     im.set_array(ne2[j,:,:].T)
     tx.set_text(r'Electron Density : t = {:.2f} $\mu$s'.format(t[j]))
     im.autoscale()
     return im
 
-ani = animation.FuncAnimation(fig, anim, frames=nt/5-100, interval=50, blit=False)
+ani = animation.FuncAnimation(fig, anim, frames=nt, interval=150, blit=False)
 
 # fig = plt.figure(figsize=(6, 3))
 # gs = gridspec.GridSpec(1, 1)
 # ax = fig.add_subplot(gs[0,0])
-# quad = ax.pcolormesh(ne2[0,:,:].T,shading='gouraud')
+# quad = ax.pcolormesh(y2, x, ne2[0,:,:].T, vmin=14.7, vmax=18.3) #shading='gouraud',
 # ax.set_xlabel('R')
 # ax.set_ylabel('X')
 # cb = fig.colorbar(quad,ax=ax)
@@ -97,15 +104,20 @@ ani = animation.FuncAnimation(fig, anim, frames=nt/5-100, interval=50, blit=Fals
 #     quad.set_array([])
 #     return quad1
 #
-# def animate(iter):
-#     quad.set_array((ne2[iter,:,:].T).ravel())
-#     tx.set_text(r'Electron Density : t = {:.2f} $\mu$s'.format(t[iter]))
-#     quad.autoscale()
+# nt = 36
+# # tgt = np.logspace(np.log10(3e-2), np.log10(t[-1]), nt)
+# tgt = np.linspace(0.15, 0.5, nt)
+# ii = np.unique([np.argmax(t - i > 0) for i in tgt])
+# def animate(i):
+#     j = ii[i]
+#     quad.set_array((ne2[j,:,:].T).ravel())
+#     tx.set_text(r'Electron Density : t = {:.2f} $\mu$s'.format(t[j]))
+#     # quad.autoscale()
 #     return quad
 #
 # gs.tight_layout(fig)
 #
-# anim = animation.FuncAnimation(fig,animate,frames=nt,interval=50,blit=False,repeat=False)
+# anim = animation.FuncAnimation(fig,animate,frames=nt,interval=150,blit=False,repeat=True)
 plt.show()
 
 # Set up formatting for the movie files

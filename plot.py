@@ -24,12 +24,13 @@ plt.rcParams['figure.figsize'] = (4.5, 3)
 # mpl.rc('text', usetex=True)
 
 # Use log time scale
-ylog = True
+ylog = False
 
 cm_subsection = np.linspace(0.0, 1.0, 4)
 colors = [ mpl.cm.viridis(x) for x in cm_subsection ]
 
-path = 'Output/2Torr/1780V_42x40/'
+path = 'Output/2Torr/350V_60x60/'
+# path = 'Output/'
 if len(sys.argv) > 1:
     d = sys.argv[1]
     res = sys.argv[2]
@@ -39,7 +40,9 @@ x = np.fromfile(path + 'meshx.dat',dtype=float) * 1e3
 y = np.fromfile(path + 'meshy.dat',dtype=float) * 1e3
 t = np.fromfile(path + 'time.dat', dtype=float)
 dt = np.fromfile(path + 'dt.dat', dtype=float)
-Id = np.fromfile(path + 'id.dat', dtype=float)
+Ida = np.fromfile(path + 'ida.dat', dtype=float)
+Idc = np.fromfile(path + 'idc.dat', dtype=float)
+# Id = np.fromfile(path + 'id.dat', dtype=float)
 Vd = np.fromfile(path + 'vd.dat', dtype=float)
 
 nx = len(x)
@@ -270,7 +273,8 @@ if ylog:
     ax1.set_xscale('log')
 
 ax0.plot(t, Vd, color=colors[0], label='Vd')
-ax1.plot(t, Id*1000., color=colors[1], label='Id')
+ax1.plot(t, Ida*1000., color=colors[0], label='Ida')
+ax1.plot(t, Idc*1000., color=colors[1], label='Idc')
 # ax0.plot(t, dt*1000., color=colors[2], label=r'$\Delta$t')
 # ax0.legend(loc='best')
 # ax1.set_ylim([3e-3,3e2])
@@ -306,7 +310,7 @@ if (ny > 1):
     ax0.spines['top'].set_visible(False)
 
     # im = ax0.contourf(y,x,f2[-1,:,:].T, 30)
-    # im = ax0.pcolormesh(y, x, f2[-1,:,:].T)
+    # im = ax0.pcolormesh(y, x, f5[-1,:,:].T)
     im = ax0.pcolormesh(y, x, np.log10(f2[-1,:,:]).T) #, shading='gouraud')
     # im = ax0.contourf(y, x, np.log10(f2[-1,:,:].T), 30)
     fig.colorbar(im, cax = cbax)

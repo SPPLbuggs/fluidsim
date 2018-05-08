@@ -35,7 +35,7 @@ contains
     integer, intent(in) :: stage, order
     real(8), intent(in) :: dt, k(:,:,:), n_min
     real(8), intent(inout) :: n(:,:,:), nerr_n
-    real(8) :: err_n(g%bx+2, g%by+2), abs_tol = 1d-2, rel_tol = 1d-2
+    real(8) :: err_n(g%bx+2, g%by+2), abs_tol = 1d-3, rel_tol = 1d-3
     integer :: i,j
 
     if (order == 1) then

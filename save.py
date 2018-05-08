@@ -3,14 +3,15 @@ from scipy.io import FortranFile
 import glob
 import sys
 
-path = 'Output/2Torr/1780V_42x42/'
+path = 'Output/2Torr/1780V_60x50/'
 # path = 'Output/'
 
 x = np.fromfile(path + 'meshx.dat',dtype=float)
 y = np.fromfile(path + 'meshy.dat',dtype=float)
 t = np.fromfile(path + 'time.dat', dtype=float)
 dt = np.fromfile(path + 'dt.dat', dtype=float)
-Id = np.fromfile(path + 'id.dat', dtype=float)
+Ida = np.fromfile(path + 'ida.dat', dtype=float)
+Idc = np.fromfile(path + 'idc.dat', dtype=float)
 Vd = np.fromfile(path + 'vd.dat', dtype=float)
 
 nx = len(x)
@@ -35,5 +36,5 @@ temp = np.fromfile(path + 'f5.dat',dtype=float)
 f5 = temp.reshape([nt, ny, nx])
 
 path = 'Data/data.npz'
-np.savez(path, x=x, y=y, t=t, dt=dt, Id=Id, Vd=Vd,
+np.savez(path, x=x, y=y, t=t, dt=dt, Ida=Ida, Idc=Idc, Vd=Vd,
          phi=f1, ne=f2, ni=f3, nt=f4, nm=f5)

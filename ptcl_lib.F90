@@ -46,7 +46,7 @@ contains
         end do
       end do
 
-      call circ_step(g, stage, ph, ni(:,:,2), ne(:,:,2), nt(:,:,2))
+      ! if (stage == 5) call circ_step(g, stage, ph, ni(:,:,2), ne(:,:,2), nt(:,:,2))
 
       if (rwall) call sfc_step(g, stage, ni(:,:,2), ne(:,:,2), nt(:,:,2))
 
@@ -133,11 +133,13 @@ contains
       De(1) = 5d-1 * (get_De(Te(1)) + get_De(Te(2)))
       De(2) = 5d-1 * (get_De(Te(2)) + get_De(Te(3)))
 
-      mut(1) = 5d-1 * (get_mut(Te(1)) + get_mut(Te(2)))
-      mut(2) = 5d-1 * (get_mut(Te(2)) + get_mut(Te(3)))
-
-      Dt(1) = 5d-1 * (get_Dt(Te(1)) + get_Dt(Te(2)))
-      Dt(2) = 5d-1 * (get_Dt(Te(2)) + get_Dt(Te(3)))
+      ! mut(1) = 5d-1 * (get_mut(Te(1)) + get_mut(Te(2)))
+      ! mut(2) = 5d-1 * (get_mut(Te(2)) + get_mut(Te(3)))
+      !
+      ! Dt(1) = 5d-1 * (get_Dt(Te(1)) + get_Dt(Te(2)))
+      ! Dt(2) = 5d-1 * (get_Dt(Te(2)) + get_Dt(Te(3)))
+      mut = 5d0/3d0 * mue
+      Dt = 5d0/3d0 * De
 
       ! Flux at i - 1/2
       call get_flux(fluxi_x(1), Ex(1), g%dx(i-1),  1, mui, Di, &
@@ -166,8 +168,10 @@ contains
       mue(2) = 5d-1 * (get_mue(Te(2)) + get_mue(Te(3)))
       De(2) = 5d-1 * (get_De(Te(2)) + get_De(Te(3)))
 
-      mut(2) = 5d-1 * (get_mut(Te(2)) + get_mut(Te(3)))
-      Dt(2) = 5d-1 * (get_Dt(Te(2)) + get_Dt(Te(3)))
+      ! mut(2) = 5d-1 * (get_mut(Te(2)) + get_mut(Te(3)))
+      ! Dt(2) = 5d-1 * (get_Dt(Te(2)) + get_Dt(Te(3)))
+      mut = 5d0/3d0 * mue
+      Dt = 5d0/3d0 * De
 
       ! Flux at i + 1/2
       call get_flux(fluxi_x(2), Ex(2), g%dx(i),  1, mui, Di, &
@@ -187,7 +191,9 @@ contains
         end if
 
         mue(1) = get_mue(Te(2))
-        mut(1) = get_mut(Te(2))
+        ! mut(1) = get_mut(Te(2))
+        mut = 5d0/3d0 * mue
+
         ve = sqrt((16d0 * e * ph0 * Te(2)) / (3d0 * pi * me)) * t0 / x0
 
         ! Flux at i - 1/2
@@ -202,7 +208,7 @@ contains
                      - 1d0/3d0 * ve * nt(i,j,2) &
                      - gam * Te(2) * fluxi_x(1)
 
-        fluxm_x(1) = - 2.5d-1 * vi * nm(i,j,2)
+        fluxm_x(1) = - 5d-1 * vi * nm(i,j,2)
 
       ! - vacuum -
       else if (g%type_x(i-1,j-1) == -1) then
@@ -222,8 +228,10 @@ contains
       mue(1) = 5d-1 * (get_mue(Te(1)) + get_mue(Te(2)))
       De(1) = 5d-1 * (get_De(Te(1)) + get_De(Te(2)))
 
-      mut(1) = 5d-1 * (get_mut(Te(1)) + get_mut(Te(2)))
-      Dt(1) = 5d-1 * (get_Dt(Te(1)) + get_Dt(Te(2)))
+      ! mut(1) = 5d-1 * (get_mut(Te(1)) + get_mut(Te(2)))
+      ! Dt(1) = 5d-1 * (get_Dt(Te(1)) + get_Dt(Te(2)))
+      mut = 5d0/3d0 * mue
+      Dt = 5d0/3d0 * De
 
       ! Flux at i - 1/2
       call get_flux(fluxi_x(1), Ex(1), g%dx(i-1),  1, mui, Di, &
@@ -243,7 +251,9 @@ contains
         end if
 
         mue(2) = get_mue(Te(2))
-        mut(2) = get_mut(Te(2))
+        ! mut(2) = get_mut(Te(2))
+        mut = 5d0/3d0 * mue
+
         ve = sqrt((16d0 * e * ph0 * Te(2)) / (3d0 * pi * me)) * t0 / x0
 
         ! Flux at i + 1/2
@@ -258,7 +268,7 @@ contains
                      + 1d0/3d0 * ve * nt(i,j,2) &
                      - gam * Te(2) * fluxi_x(2)
 
-        fluxm_x(2) = 2.5d-1 * vi * nm(i,j,2)
+        fluxm_x(2) = 5d-1 * vi * nm(i,j,2)
 
       ! - vacuum -
       else if (g%type_x(i-1,j-1) == 1) then
@@ -299,11 +309,13 @@ contains
         De(1) = 5d-1 * (get_De(Te(1)) + get_De(Te(2)))
         De(2) = 5d-1 * (get_De(Te(2)) + get_De(Te(3)))
 
-        mut(1) = 5d-1 * (get_mut(Te(1)) + get_mut(Te(2)))
-        mut(2) = 5d-1 * (get_mut(Te(2)) + get_mut(Te(3)))
-
-        Dt(1) = 5d-1 * (get_Dt(Te(1)) + get_Dt(Te(2)))
-        Dt(2) = 5d-1 * (get_Dt(Te(2)) + get_Dt(Te(3)))
+        ! mut(1) = 5d-1 * (get_mut(Te(1)) + get_mut(Te(2)))
+        ! mut(2) = 5d-1 * (get_mut(Te(2)) + get_mut(Te(3)))
+        !
+        ! Dt(1) = 5d-1 * (get_Dt(Te(1)) + get_Dt(Te(2)))
+        ! Dt(2) = 5d-1 * (get_Dt(Te(2)) + get_Dt(Te(3)))
+        mut = 5d0/3d0 * mue
+        Dt = 5d0/3d0 * De
 
         ! Flux at j - 1/2
         call get_flux(fluxi_y(1), Ey(1), g%dy(j-1),  1, mui, Di, &
@@ -333,8 +345,10 @@ contains
         mue(2) = 5d-1 * (get_mue(Te(2)) + get_mue(Te(3)))
         De(2) = 5d-1 * (get_De(Te(2)) + get_De(Te(3)))
 
-        mut(2) = 5d-1 * (get_mut(Te(2)) + get_mut(Te(3)))
-        Dt(2) = 5d-1 * (get_Dt(Te(2)) + get_Dt(Te(3)))
+        ! mut(2) = 5d-1 * (get_mut(Te(2)) + get_mut(Te(3)))
+        ! Dt(2) = 5d-1 * (get_Dt(Te(2)) + get_Dt(Te(3)))
+        mut = 5d0/3d0 * mue
+        Dt = 5d0/3d0 * De
 
         ! Flux at j + 1/2
         call get_flux(fluxi_y(2), Ey(2), g%dy(j),  1, mui, Di, &
@@ -360,8 +374,10 @@ contains
         mue(1) = 5d-1 * (get_mue(Te(1)) + get_mue(Te(2)))
         De(1) = 5d-1 * (get_De(Te(1)) + get_De(Te(2)))
 
-        mut(1) = 5d-1 * (get_mut(Te(1)) + get_mut(Te(2)))
-        Dt(1) = 5d-1 * (get_Dt(Te(1)) + get_Dt(Te(2)))
+        ! mut(1) = 5d-1 * (get_mut(Te(1)) + get_mut(Te(2)))
+        ! Dt(1) = 5d-1 * (get_Dt(Te(1)) + get_Dt(Te(2)))
+        mut = 5d0/3d0 * mue
+        Dt = 5d0/3d0 * De
 
         ! Flux at j - 1/2
         call get_flux(fluxi_y(1), Ey(1), g%dy(j-1),  1, mui, Di, &
@@ -390,6 +406,32 @@ contains
                         nt(i,j,2), 0d0)
           fluxm_y(2) = Dm * nm(i,j,2) / g%dy(j)
 
+        else if (g%type_y(i-1,j-1) == 2) then
+          if (ph(i,j+1) > ph(i,j)) then
+              a = 1d0 ! electrons drift
+          else
+              a = 0d0 ! ions drift
+          end if
+
+          mue(2) = get_mue(Te(2))
+          ! mut(2) = get_mut(Te(2))
+          mut = 5d0/3d0 * mue
+
+          ve = sqrt((16d0 * e * ph0 * Te(2)) / (3d0 * pi * me)) * t0 / x0
+
+          ! Flux at i + 1/2
+          fluxi_y(2) = (1d0 - a) * mui * Ey(2) * ni(i,j,2) &
+                       + 2.5d-1 * vi * ni(i,j,2)
+
+          fluxe_y(2) = - a * mue(2) * Ey(2) * ne(i,j,2) &
+                       + 2.5d-1 * ve * ne(i,j,2) &
+                       - gam * fluxi_x(2)
+
+          fluxt_y(2) = - a * mut(2) * Ey(2) * nt(i,j,2) &
+                       + 1d0/3d0 * ve * nt(i,j,2) &
+                       - gam * Te(2) * fluxi_x(2)
+
+          fluxm_y(2) = 5d-1 * vi * nm(i,j,2)
         else
           fluxi_y(2) = 0d0
           fluxe_y(2) = 0d0

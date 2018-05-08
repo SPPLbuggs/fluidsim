@@ -13,7 +13,7 @@ x = data['x']
 y = data['y']
 t = data['t']
 Vd = data['Vd']
-Id = data['Id']
+# Id = data['Id']
 ne = data['ne']
 Te = data['nt']
 
@@ -25,8 +25,11 @@ Tg = 300.0
 p = 3.0
 ninf = p * 101325.0 / 760.0 / kb / Tg
 
+# xl = 7.9e-3
+# yl = 13.6e-3
+# zl = 15.8e-3
 xl = 7.9e-3
-yl = 13.6e-3
+yl = 15.8e-3
 zl = 15.8e-3
 
 Ej = lambda y, z: 4.0 / (xl * yl * zl) * (np.sin(np.pi * y / yl) * np.sin(np.pi * z / zl))**2
@@ -52,9 +55,9 @@ def nu(x):
 
     return np.exp(a+b*y + c*y**2 + d*y**3 + f*y**4 + g*y**5 + h*y**6
                   + i*y**7 + j*y**8) * ninf
-nx = 40
-ny = 40
-nz = 40
+nx = 60
+ny = 50
+nz = 50
 Mat = np.zeros([nx, ny, nz], dtype='complex')
 Ex = np.zeros([ny, nz])
 
@@ -70,9 +73,9 @@ wp = np.zeros([len(x), len(y)], dtype='complex')
 wr = np.pi * 2.9989e8 * (1.0 / yl**2 + 1.0 / zl**2)**0.5
 print 'Res Freq = {:.2f} GHz'.format(wr / np.pi / 2.0 / 1e9)
 
-nt = 40
-# tgt = np.logspace(np.log10(3e-2), np.log10(t[-1]), nt)
-tgt = np.logspace(np.log10(1e-1), np.log10(20.), nt)
+nt = 400
+tgt = np.logspace(np.log10(3e-2), np.log10(t[-1]-0.001), nt)
+# tgt = np.logspace(np.log10(1e-1), np.log10(20.), nt)
 ii = np.unique([np.argmax(t - i > 0) for i in tgt])
 nt = len(ii)
 

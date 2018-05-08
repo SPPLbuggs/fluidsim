@@ -16,7 +16,7 @@ module props
   type :: grid
     integer :: nx, ny, bx, by, offx, offy, nglob, nloc, dof
     integer, allocatable :: node(:,:,:), type_x(:,:), type_y(:,:)
-    real(8) :: l, w, ew, dt, t
+    real(8) :: l, w, ew, gap, dt, t
     real(8), allocatable :: dx(:), dlx(:), dy(:), dly(:), r(:)
   end type
 
@@ -38,7 +38,7 @@ module props
                        p      = 2,   & ! torr
                        ninf   = p * 101325d0 / 760d0 / kb / Tg * x0**3, &
                        n_zero = 1e8 * x0**3
-  real(8) :: n_init = 1e11 * x0**3
+  real(8) :: n_init = 1e10 * x0**3
 
   integer :: rf = 0
   logical :: unif = .True., cyl = .True., rwall = .False.
@@ -46,9 +46,9 @@ module props
 contains
 
   ! *** Initialize Grid ***
-  subroutine g_init(g, nx, ny, px, py, dof, l, w, ew, path)
+  subroutine g_init(g, nx, ny, px, py, dof, l, w, ew, gap, path)
     type(grid), intent(inout) :: g
-    real(8), intent(in) :: l, w, ew
+    real(8), intent(in) :: l, w, ew, gap
     integer, intent(in) :: nx, ny, px, py, dof
     character(*), intent(in) :: path
     integer :: i, j, d
@@ -85,8 +85,9 @@ contains
     g%l   = l
     g%w   = w
     g%ew  = ew
+    g%gap = gap
 
-    xtemp = 2.0 * 0.886 / float(g%nx+1)
+    xtemp = 2.0 * 1.175 / float(g%nx+1)
     allocate(x(g%bx+2), g%dx(g%bx+1), g%dlx(g%bx) )
 
     if (unif) then
@@ -95,7 +96,7 @@ contains
       end do
     else
       do i = 1, g%bx+2
-        x(i) = tanh(-0.886 + xtemp * (g%offx + i - 1))
+        x(i) = tanh(-1.175 + xtemp * (g%offx + i - 1))
       end do
     end if
 
@@ -115,6 +116,14 @@ contains
     do i = 1, g%bx
       g%dlx(i) = 0.5 * (g%dx(i+1) + g%dx(i))
     end do
+
+    xtemp = minval(g%dx)
+    ytemp = maxval(g%dx)
+    call MPI_Allreduce(MPI_In_Place, xtemp, 1, MPI_REAL8, MPI_Min, comm, ierr)
+    call MPI_Allreduce(MPI_In_Place, ytemp, 1, MPI_REAL8, MPI_Max, comm, ierr)
+    if ((.not. unif) .and. (myID == 0)) &
+      write(*,31) g%l / float(g%nx+1) / xtemp, ytemp / xtemp
+    31 format('Non-uniform Grid, dx_u / dx_min:', f6.2, '   dx_max / dx_min:', f6.2)
 
     if (g%ny > 1) then
       allocate( y(g%by+2), g%dy(g%by+1), g%dly(g%by) )
@@ -146,15 +155,21 @@ contains
       do j = 1, g%by
         g%dly(j) = 0.5 * (g%dy(j+1) + g%dy(j))
       end do
+
+      allocate(g%r(g%by+2))
+      g%r = y
+
+      xtemp = minval(g%dy)
+      ytemp = maxval(g%dy)
+      call MPI_Allreduce(MPI_In_Place, xtemp, 1, MPI_REAL8, MPI_Min, comm, ierr)
+      call MPI_Allreduce(MPI_In_Place, ytemp, 1, MPI_REAL8, MPI_Max, comm, ierr)
+      if( (.not. unif) .and. (myID == 0)) &
+        write(*,32) g%w / float(g%ny+1) / xtemp, ytemp / xtemp
+      32 format('                  dy_u / dy_min:', f6.2, '   dy_max / dy_min:', f6.2)
     else
       allocate(g%dy(1), y(1))
       g%dy = g%dx(1)
       y = 1
-    end if
-
-    if (cyl) then
-      allocate(g%r(g%by+2))
-      g%r = y
     end if
 
     ! Define node types
@@ -172,12 +187,13 @@ contains
           if (rwall) then
             g%type_y(i,j) = 3
           else
-            g%type_y(i,j) = 1
+            g%type_y(i,j) = 2
           end if
         end if
 
         if ((rx == 0) .and. (i == 1)) then
-          if (y(j) .le. g%ew) then
+          if ((y(j) .le. g%ew) .or. &
+              (y(j) .ge. g%gap)) then
             g%type_x(i,j) = -2
           else
             g%type_x(i,j) = -1
@@ -185,7 +201,8 @@ contains
         end if
 
         if ((rx == px-1) .and. (i == g%bx)) then
-          if (y(j) .le. g%ew) then
+          if ((y(j) .le. g%ew) .or. &
+              (y(j) .ge. g%gap)) then
             g%type_x(i,j) = 2
           else
             g%type_x(i,j) = 1
@@ -263,10 +280,17 @@ contains
     end if
     call MPI_File_Close(fh, ierr)
 
-    call MPI_File_Open(comm, path//'id.dat', amode,  info, fh, ierr)
+    call MPI_File_Open(comm, path//'ida.dat', amode,  info, fh, ierr)
     if (ierr .ne. MPI_SUCCESS) then
-      if (myId == 0) call MPI_File_Delete(path//'id.dat', info, ierr);
-      call MPI_File_Open(comm, path//'id.dat', amode,  info, fh, ierr)
+      if (myId == 0) call MPI_File_Delete(path//'ida.dat', info, ierr);
+      call MPI_File_Open(comm, path//'ida.dat', amode,  info, fh, ierr)
+    end if
+    call MPI_File_Close(fh, ierr)
+
+    call MPI_File_Open(comm, path//'idc.dat', amode,  info, fh, ierr)
+    if (ierr .ne. MPI_SUCCESS) then
+      if (myId == 0) call MPI_File_Delete(path//'idc.dat', info, ierr);
+      call MPI_File_Open(comm, path//'idc.dat', amode,  info, fh, ierr)
     end if
     call MPI_File_Close(fh, ierr)
 

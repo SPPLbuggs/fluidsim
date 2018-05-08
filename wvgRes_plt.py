@@ -35,9 +35,12 @@ dw = data['dw']
 t = data['t']
 nt = len(t)
 
-xl = 7.5e-3
+# xl = 7.9e-3
+# yl = 15.8e-3
+# zl = 13.7e-3
+xl = 7.9e-3
 yl = 15.8e-3
-zl = 13.7e-3
+zl = 15.8e-3
 
 wr = np.pi * 2.9989e8 * (1.0 / yl**2 + 1.0 / zl**2)**0.5
 Qa = 1912.
@@ -83,14 +86,14 @@ ax1.set_ylabel(r'Quality Factor')
 ax0.set_xlabel(r'Time [$\mu \,s$]')
 ax0.set_xscale('log')
 
-ax0.plot(t, dw.real*wr/2e6/np.pi, color=color2[0], label=r'$\Delta f_\mathrm{res}$')
+ax0.plot(t, (dw.real-dw.real[0])*wr/2e6/np.pi, color=color2[0], label=r'$\Delta f_\mathrm{res}$')
 ax1.plot(t, Q, color=color2[1], label=r'Q')
 
 data = np.load('Data/exp_dwQ.npz')
 
 dw_exp = data['dw']
 Q_exp = data['Q']
-t_exp = data['t']
+t_exp = data['t']+.2
 
 ax0.plot(t_exp, dw_exp, '--', color=color2[0])
 ax1.plot(t_exp, Q_exp, '--', color=color2[1])
@@ -110,121 +113,121 @@ ax1.legend(frameon=False, loc=1, bbox_to_anchor = (1.0, 1.1))
 #              arrowprops=dict(arrowstyle="->",connectionstyle="arc3,rad=0.38",
 #              color=color2[1]))
 
-plt.xlim([2e-2,350])
+ax0.set_xlim([2e-2,350])
 gs.tight_layout(fig, rect=[0, 0, 1, 1])
 fig.savefig('Figures/pulse_dResQ.png',dpi=300)
 
 ## Plt 2a
-fig = plt.figure(figsize=(5.25,3))
-gs = gridspec.GridSpec(1,2, hspace=0.0)
-gs.set_width_ratios([1.0,0.03])
-ax0 = fig.add_subplot(gs[0,0])
-ax1 = fig.add_subplot(gs[0,1])
-
-ax0.spines['right'].set_visible(False)
-ax0.spines['top'].set_visible(False)
-
-cmap = mpl.cm.viridis
-norm = mpl.colors.Normalize(vmin=-.5,vmax=9.5)
-cb = mpl.colorbar.ColorbarBase(ax1, cmap=cmap, norm=norm, ticks=np.linspace(0,9,5))
-cb.outline.set_visible(False)
-cb.ax.set_title(r'$\Delta f$ [$MHz$]')
-
-# tgt = np.logspace(0,np.log10(150),10)
-tgt = np.linspace(0,(wT.max()-wr)/2e6/np.pi,9)
-ls = np.zeros(len(tgt), dtype='int')
-
-for i in range(len(tgt)):
-    ls[i] = np.argmin((tgt[i] - (wT-wT0)/2e6/np.pi)**2)
-
-cb.ax.set_yticklabels(['{:.0f}'.format((wT[i]-wr)/2e6/np.pi) for i in ls[::2]])
-
-for i in range(len(tgt)):
-    l = ls[i]
-    ax0.plot(t_ext, 10*np.log10(T[:,l]), color=colors[i])
-
-ax0.set_xlabel(r'Time [$\mu$s]')
-ax0.set_ylabel(r'Transmission [$dB$]')
-# ax0.set_xticks(np.arange(0,22,5))
-# ax0.set_xlim([-2,22])
-ax0.set_xscale('log')
-ax0.set_xlim([5e-2,300])
-gs.tight_layout(fig, rect=[0, 0, 1, 1])
-fig.savefig('Figures/pulse_T.png',dpi=300)
-
-## Plt 2b
-fig = plt.figure(figsize=(5.25,3))
-gs = gridspec.GridSpec(1,2, hspace=0.0)
-gs.set_width_ratios([1.0,0.03])
-ax0 = fig.add_subplot(gs[0,0])
-ax1 = fig.add_subplot(gs[0,1])
-
-ax0.spines['right'].set_visible(False)
-ax0.spines['top'].set_visible(False)
-
-cmap = mpl.cm.viridis
-norm = mpl.colors.Normalize(vmin=-.5,vmax=9.5)
-cb = mpl.colorbar.ColorbarBase(ax1, cmap=cmap, norm=norm, ticks=np.linspace(0,9,5))
-cb.outline.set_visible(False)
-cb.ax.set_title(r'$\Delta f$ [$MHz$]')
-
-# tgt = np.logspace(0,np.log10(150),10)
-tgt = np.linspace(0,(wT.max()-wr)/2e6/np.pi,9)
-ls = np.zeros(len(tgt), dtype='int')
-
-for i in range(len(tgt)):
-    ls[i] = np.argmin((tgt[i] - (wT-wT0)/2e6/np.pi)**2)
-
-cb.ax.set_yticklabels(['{:.0f}'.format((wT[i]-wr)/2e6/np.pi) for i in ls[::2]])
-
-for i in range(len(tgt)):
-    l = ls[i]
-    ax0.plot(t_ext, 10*np.log10(T[:,l]), color=colors[i])
-
-ax0.set_xlabel(r'Time [$\mu$s]')
-ax0.set_ylabel(r'Transmission [$dB$]')
-# ax0.set_xticks(np.arange(0,22,5))
-# ax0.set_xlim([-2,22])
+# fig = plt.figure(figsize=(5.25,3))
+# gs = gridspec.GridSpec(1,2, hspace=0.0)
+# gs.set_width_ratios([1.0,0.03])
+# ax0 = fig.add_subplot(gs[0,0])
+# ax1 = fig.add_subplot(gs[0,1])
+#
+# ax0.spines['right'].set_visible(False)
+# ax0.spines['top'].set_visible(False)
+#
+# cmap = mpl.cm.viridis
+# norm = mpl.colors.Normalize(vmin=-.5,vmax=9.5)
+# cb = mpl.colorbar.ColorbarBase(ax1, cmap=cmap, norm=norm, ticks=np.linspace(0,9,5))
+# cb.outline.set_visible(False)
+# cb.ax.set_title(r'$\Delta f$ [$MHz$]')
+#
+# # tgt = np.logspace(0,np.log10(150),10)
+# tgt = np.linspace(0,(wT.max()-wr)/2e6/np.pi,9)
+# ls = np.zeros(len(tgt), dtype='int')
+#
+# for i in range(len(tgt)):
+#     ls[i] = np.argmin((tgt[i] - (wT-wT0)/2e6/np.pi)**2)
+#
+# cb.ax.set_yticklabels(['{:.0f}'.format((wT[i]-wr)/2e6/np.pi) for i in ls[::2]])
+#
+# for i in range(len(tgt)):
+#     l = ls[i]
+#     ax0.plot(t_ext, 10*np.log10(T[:,l]), color=colors[i])
+#
+# ax0.set_xlabel(r'Time [$\mu$s]')
+# ax0.set_ylabel(r'Transmission [$dB$]')
+# # ax0.set_xticks(np.arange(0,22,5))
+# # ax0.set_xlim([-2,22])
 # ax0.set_xscale('log')
-ax0.set_xlim([-0.025,.325])
-gs.tight_layout(fig, rect=[0, 0, 1, 1])
-fig.savefig('Figures/pulse_Tion.eps',dpi=300)
+# ax0.set_xlim([5e-2,300])
+# gs.tight_layout(fig, rect=[0, 0, 1, 1])
+# fig.savefig('Figures/pulse_T.png',dpi=300)
 
-
-### Plot 3
-fig = plt.figure(figsize=(5.25,3))
-gs = gridspec.GridSpec(1,2, hspace=0.0)
-gs.set_width_ratios([1.0,0.03])
-ax0 = fig.add_subplot(gs[0,0])
-ax1 = fig.add_subplot(gs[0,1])
-
-ax0.spines['right'].set_visible(False)
-ax0.spines['top'].set_visible(False)
-
-cmap = mpl.cm.viridis
-norm = mpl.colors.Normalize(vmin=-.5,vmax=9.5)
-cb = mpl.colorbar.ColorbarBase(ax1, cmap=cmap, norm=norm, ticks=np.linspace(0,9,5))
-cb.outline.set_visible(False)
-cb.ax.set_title(r'[$\mu$s]')
-
-tgt = np.logspace(np.log10(80e-3),np.log10(t[-1]),9)
-ns = np.zeros(len(tgt), dtype='int')
-for i in range(len(tgt)):
-    ns[i] = np.argmin((tgt[i] - t)**2)
-
-cb.ax.set_yticklabels(['{:.2f}'.format(t[i]) for i in ns[::2]])
-
-for i in range(len(ns)):
-    n = ns[i]
-    ax0.plot((wT - wT0)/2e6/np.pi, 10*np.log10(T[n,:]), color=colors[i])
-
-ax0.set_xlabel(r'$\Delta$f [MHz]')
-ax0.set_ylabel(r'Transmission [$dB$]')
-# ax0.set_xticks(np.arange(0,22,5))
-# ax0.set_xlim([-2,22])
-# ax0.set_xscale('log')
-# ax0.set_xlim([2e-2,5e-1])
-gs.tight_layout(fig, rect=[0, 0, 1, 1])
-fig.savefig('Figures/pulse_Fspec.png',dpi=300)
+# ## Plt 2b
+# fig = plt.figure(figsize=(5.25,3))
+# gs = gridspec.GridSpec(1,2, hspace=0.0)
+# gs.set_width_ratios([1.0,0.03])
+# ax0 = fig.add_subplot(gs[0,0])
+# ax1 = fig.add_subplot(gs[0,1])
+#
+# ax0.spines['right'].set_visible(False)
+# ax0.spines['top'].set_visible(False)
+#
+# cmap = mpl.cm.viridis
+# norm = mpl.colors.Normalize(vmin=-.5,vmax=9.5)
+# cb = mpl.colorbar.ColorbarBase(ax1, cmap=cmap, norm=norm, ticks=np.linspace(0,9,5))
+# cb.outline.set_visible(False)
+# cb.ax.set_title(r'$\Delta f$ [$MHz$]')
+#
+# # tgt = np.logspace(0,np.log10(150),10)
+# tgt = np.linspace(0,(wT.max()-wr)/2e6/np.pi,9)
+# ls = np.zeros(len(tgt), dtype='int')
+#
+# for i in range(len(tgt)):
+#     ls[i] = np.argmin((tgt[i] - (wT-wT0)/2e6/np.pi)**2)
+#
+# cb.ax.set_yticklabels(['{:.0f}'.format((wT[i]-wr)/2e6/np.pi) for i in ls[::2]])
+#
+# for i in range(len(tgt)):
+#     l = ls[i]
+#     ax0.plot(t_ext, 10*np.log10(T[:,l]), color=colors[i])
+#
+# ax0.set_xlabel(r'Time [$\mu$s]')
+# ax0.set_ylabel(r'Transmission [$dB$]')
+# # ax0.set_xticks(np.arange(0,22,5))
+# # ax0.set_xlim([-2,22])
+# # ax0.set_xscale('log')
+# ax0.set_xlim([-0.025,.325])
+# gs.tight_layout(fig, rect=[0, 0, 1, 1])
+# fig.savefig('Figures/pulse_Tion.eps',dpi=300)
+#
+#
+# ### Plot 3
+# fig = plt.figure(figsize=(5.25,3))
+# gs = gridspec.GridSpec(1,2, hspace=0.0)
+# gs.set_width_ratios([1.0,0.03])
+# ax0 = fig.add_subplot(gs[0,0])
+# ax1 = fig.add_subplot(gs[0,1])
+#
+# ax0.spines['right'].set_visible(False)
+# ax0.spines['top'].set_visible(False)
+#
+# cmap = mpl.cm.viridis
+# norm = mpl.colors.Normalize(vmin=-.5,vmax=9.5)
+# cb = mpl.colorbar.ColorbarBase(ax1, cmap=cmap, norm=norm, ticks=np.linspace(0,9,5))
+# cb.outline.set_visible(False)
+# cb.ax.set_title(r'[$\mu$s]')
+#
+# tgt = np.logspace(np.log10(80e-3),np.log10(t[-1]),9)
+# ns = np.zeros(len(tgt), dtype='int')
+# for i in range(len(tgt)):
+#     ns[i] = np.argmin((tgt[i] - t)**2)
+#
+# cb.ax.set_yticklabels(['{:.2f}'.format(t[i]) for i in ns[::2]])
+#
+# for i in range(len(ns)):
+#     n = ns[i]
+#     ax0.plot((wT - wT0)/2e6/np.pi, 10*np.log10(T[n,:]), color=colors[i])
+#
+# ax0.set_xlabel(r'$\Delta$f [MHz]')
+# ax0.set_ylabel(r'Transmission [$dB$]')
+# # ax0.set_xticks(np.arange(0,22,5))
+# # ax0.set_xlim([-2,22])
+# # ax0.set_xscale('log')
+# # ax0.set_xlim([2e-2,5e-1])
+# gs.tight_layout(fig, rect=[0, 0, 1, 1])
+# fig.savefig('Figures/pulse_Fspec.png',dpi=300)
 
 plt.show()
