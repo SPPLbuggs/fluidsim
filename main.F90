@@ -4,12 +4,13 @@ program main
   use ptcl_lib
   use circ_lib
   use sfc_lib
+  use em_lib
   implicit none
 
   type(grid) :: g
-  integer :: ts = 0, ts1, ts2, nx, ny, dof, lerr, rIdx = 1
+  integer :: ts = 0, ts1, ts2, nx, ny, dof, lerr
   real(8) :: l, w, ew, gap, vl, dt, t_fin, t_pr, t_sv, t_sv0, &
-             sim_start, time1, time2, Id_mi = 0, Vd_mi2 = 0
+             sim_start, time1, time2, EmAmpl
   character(80):: path
 
   ! Initialize PETSc and MPI
@@ -30,26 +31,28 @@ program main
   dof = 1
   l  = 7.9e-3 / x0
   w  = 7.9e-3 / x0
-  ew = 1.0e-3 / x0
+  ew = 3.95e-3 / x0
   gap = 2.0e-3 / x0
   dt = 5e-6
   t_fin = 100
   t_pr = 0d0
   t_sv = 1e-4
   t_sv0 = 1e-4
-  vl = 500 / ph0
-  res = 1e7
+  vl = 0 / ph0
+  res = 1e6
+  EmAmpl = 5e4
 
   ! Read input arguments
   call read_in
 
   ! Initialize grid and arrays
-  ! path = 'Output/temp'
+  path = 'Output/'
   call g_init(g, nx, ny, px, py, dof, l, w, ew, gap, trim(path))
   call lapl_init(g)
   call ptcl_init(g)
   call circ_init(vl)
   call sfc_init(g)
+  call em_init(g, 0, 1900) !55
 
   g%t  = 0
   g%dt = dt
@@ -57,11 +60,13 @@ program main
   do
     if (g%t >= t_fin) exit
 
+    call em_run(g, ne(:,:,1), nt(:,:,1), EmAmpl)
+
     ! Solve ne system
     t_m = 1e9
-    if (ts > 1) call ptcl_step(g, ph)
+    if (ts > 1) call ptcl_step(g, ph, Em)
 
-    call circ_step(g, 5, ph, ni(:,:,2), ne(:,:,2), nt(:,:,2))
+    ! call circ_step(g, 5, ph, ni(:,:,2), ne(:,:,2), nt(:,:,2))
 
     ! Solve ph system
     call lapl_solve(g, ne(:,:,1), ni(:,:,1), nt(:,:,1), sig_pl, lerr)
@@ -133,15 +138,6 @@ program main
         t_sv0 = min(t_sv0, 2d-2)
       end if
     end if
-
-    ! if ((rf == -1) .and. (g%t > 2d0)) then
-    !   if ((abs((Id - Id_mi) / Id) .le. (g%dt * 1d-3)) .and. &
-    !       (abs((Vd_pl - Vd_mi2) / Vd_pl) .le. (g%dt * 1d-3))) rIdx = rIdx + 1
-    !   Id_mi = Id
-    !   Vd_mi2 = Vd_pl
-    !   call MPI_Allreduce(MPI_In_Place, rIdx, 1, MPI_Int, MPI_Max, comm, ierr)
-    !   if ((abs(Vd_pl * ph0) .ge. 600)) call MPI_Abort(comm, 1, ierr)
-    ! end if
   end do
 
   if (myId == 0) then

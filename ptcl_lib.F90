@@ -8,16 +8,19 @@ module ptcl_lib
                           ke(:,:,:), ne(:,:,:), &
                           km(:,:,:), nm(:,:,:), &
                           kt(:,:,:), nt(:,:,:)
-  real(8) :: err_prev = 1
+  real(8) :: err_prev = 1, EmVal
 
 contains
 
   subroutine ptcl_init(g)
     type(grid), intent(inout) :: g
+    integer :: i, j
+
     allocate( ki(g%bx+2, g%by+2, 5), ni(g%bx+2, g%by+2, 3), &
               ke(g%bx+2, g%by+2, 5), ne(g%bx+2, g%by+2, 3), &
               kt(g%bx+2, g%by+2, 5), nt(g%bx+2, g%by+2, 3), &
-              km(g%bx+2, g%by+2, 5), nm(g%bx+2, g%by+2, 3) )
+              km(g%bx+2, g%by+2, 5), nm(g%bx+2, g%by+2, 3))
+
     ki = 0
     ke = 0
     kt = 0
@@ -28,9 +31,9 @@ contains
     nm = n_init
   end subroutine
 
-  subroutine ptcl_step(g, ph)
+  subroutine ptcl_step(g, ph, Em)
     type(grid), intent(inout) :: g
-    real(8), intent(inout) :: ph(:,:)
+    real(8), intent(inout) :: ph(:,:), Em(:)
     integer :: i, j, stage
     real(8) :: err_cur, scfac, err_ni, err_ne, err_nt, err_nm
 
@@ -42,11 +45,11 @@ contains
       ! Update particle densities
       do j = 2, g%by+1
         do i = 2, g%bx+1
-          call ptclEqn(g, i, j, stage, ph)
+          call ptclEqn(g, i, j, stage, ph, Em)
         end do
       end do
 
-      ! if (stage == 5) call circ_step(g, stage, ph, ni(:,:,2), ne(:,:,2), nt(:,:,2))
+      call circ_step(g, stage, ph, ni(:,:,2), ne(:,:,2), nt(:,:,2))
 
       if (rwall) call sfc_step(g, stage, ni(:,:,2), ne(:,:,2), nt(:,:,2))
 
@@ -95,10 +98,10 @@ contains
     end do
   end subroutine
 
-  subroutine ptclEqn(g, i, j, stage, ph)
+  subroutine ptclEqn(g, i, j, stage, ph, Em)
     type(grid), intent(in) :: g
     integer, intent(in)    :: i, j, stage
-    real(8), intent(in)    :: ph(:,:)
+    real(8), intent(in)    :: ph(:,:), Em(:)
     real(8) :: a, Ex(2) = 0, Ey(2) = 0, Te(3), mue(2), mut(2), De(2), Dt(2), &
                dfluxi_dx = 0, dfluxi_dy = 0, fluxi_x(2) = 0, fluxi_y(2) = 0, &
                dfluxe_dx = 0, dfluxe_dy = 0, fluxe_x(2) = 0, fluxe_y(2) = 0, &
@@ -509,8 +512,12 @@ contains
     ! reactions
     term_st3 = - h_ir * k_ir * ninf * ne(i,j,2) &
                - h_si * k_si * nm(i,j,2) * ne(i,j,2) &
-               - h_ex * k_ex * ninf * ne(i,j,2)! &
+               - h_ex * k_ex * ninf * ne(i,j,2) &
+               + ne(i,j,2) * wp02 * Em(j-1) / sqrt(w2 + nu**2)
                !- h_sc * k_sc * nm(i,j,2) * ne(i,j,2)
+
+    ! write(*,33) ne(i,j,2) * wp02 * (EmVal * Em(i,j))**2 / sqrt(w2 + nu**2), -dfluxt_dx - dfluxt_dy
+    ! 33 format(10es12.3)
 
     ! evaluate expression
     ki(i,j,stage) = -dfluxi_dx - dfluxi_dy + term_sie

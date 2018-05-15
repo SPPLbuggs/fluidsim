@@ -2,9 +2,6 @@ module ptcl_props
     use props
     implicit none
 
-    ! electron properties
-    real(8), parameter:: me = 9.10938188d-31
-
     ! positive ion properties
     real(8), parameter:: mi  = 1.67262178d-27 * 39.948d0, &
                          mui = 1.45d3 / p * 1d-4 * ph0 * t0 / x0**2, &
@@ -187,7 +184,7 @@ contains
     real(8), intent(in) :: T
     real(8) :: x, a = 11.604505d3
 
-    x = log10(min(T * ph0 / 1.5 * a, 5e4))
+    x = log10(min(T * ph0 / 1.5 * a, 5d4))
 
     get_beta = 10d0**(0.944d0 - 0.665d0 * (x - 2.48)) * 1d-13 * t0 / x0**3
 

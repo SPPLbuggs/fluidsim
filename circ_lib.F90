@@ -21,7 +21,7 @@ contains
     integer, intent(in) :: stage
     real(8), intent(inout) :: ph(:,:), ni(:,:), ne(:,:), nt(:,:)
     integer :: i, j
-    real(8) :: a, Te(2), Ex, mue, De, ve, dr, flxi, flxe
+    real(8) :: Te(2), Ex, mue, De, dr, flxi, flxe
 
     if (rf == 0) then
       ! ** DC **
@@ -47,17 +47,7 @@ contains
       else
         Vsrc = 0d0
       end if
-
-
-      ! ** Taemin's Pulse **
-      ! if (g%t < 20d-3) then
-      !   Vsrc = Vmax * sin(50d0 * pi * g%t)**3
-      ! else
-      !   Vsrc = 0d0
-      ! end if
     end if
-
-    !Res = R0 * e / (ph0 * t0)
 
     ! i = 2
     ! Ida = 0d0
@@ -163,28 +153,28 @@ contains
     call MPI_Allreduce(MPI_In_Place, Ida, 1, etype, MPI_Sum, comm, ierr)
     call MPI_Allreduce(MPI_In_Place, Idc, 1, etype, MPI_Sum, comm, ierr)
 
-    ! kv(stage) = -(Id - (Vsrc - Vd_mi) / Res) / Cap
-    !
-    ! if (stage == 1) then
-    !   Vd_mi = Vd_or + g%dt * kv(1) / 3d0
-    !
-    ! else if (stage == 2) then
-    !   Vd_mi = Vd_or + g%dt * ( kv(1) + kv(2)) / 6d0
-    !
-    ! else if (stage == 3) then
-    !   Vd_mi = Vd_or + g%dt * (kv(1) + kv(3) * 3d0) / 8d0
-    !
-    ! else if (stage == 4) then
-    !   Vd_mi = Vd_or + g%dt * (kv(1) &
-    !           - kv(3) * 3d0 + kv(4) * 4d0 ) / 2d0
-    !
-    ! else
-    !   Vd_pl = Vd_or + g%dt * (kv(1) &
-    !           + kv(4) * 4d0 + kv(5)) / 6d0
-    ! end if
+    kv(stage) = -(Idc - Ida - (Vsrc - Vd_mi) / Res) / Cap
 
-    if (rf .ne. -1) Vd_pl = Vsrc
-    if (rf .ne. -1) Vd_mi = Vsrc
+    if (stage == 1) then
+      Vd_mi = Vd_or + g%dt * kv(1) / 3d0
+
+    else if (stage == 2) then
+      Vd_mi = Vd_or + g%dt * ( kv(1) + kv(2)) / 6d0
+
+    else if (stage == 3) then
+      Vd_mi = Vd_or + g%dt * (kv(1) + kv(3) * 3d0) / 8d0
+
+    else if (stage == 4) then
+      Vd_mi = Vd_or + g%dt * (kv(1) &
+              - kv(3) * 3d0 + kv(4) * 4d0 ) / 2d0
+
+    else
+      Vd_pl = Vd_or + g%dt * (kv(1) &
+              + kv(4) * 4d0 + kv(5)) / 6d0
+    end if
+
+    ! if (rf .ne. -1) Vd_pl = Vsrc
+    ! if (rf .ne. -1) Vd_mi = Vsrc
     i = 2
 
     if (g%ny > 1) then
@@ -228,7 +218,7 @@ contains
     Vd_pl = Vset
     Vd_mi = Vset
     Vd_or = Vset
-    Cap = 1d-12 * ph0 / e
+    Cap = 1d-10 * ph0 / e
     !Res = R0 * e / (ph0 * t0)
   end subroutine
 end module

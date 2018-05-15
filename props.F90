@@ -6,7 +6,7 @@ module props
   real(8) :: t_m = 1e9
 
   ! mpi variables
-  integer :: comm, myId, nproc, ierr, &
+  integer :: comm, rxComm, ryComm, myId, nproc, ierr, &
              rx, ry, px, py, north, south, east, west, &
              fh, etype, amode, info, stat(MPI_Status_Size), &
              core_array, glob_array
@@ -26,19 +26,22 @@ module props
                        mu0    = 4 * pi * 1e-7,          &
                        c0     = 1d0 / sqrt(eps0 * mu0), &
                        e      = 1.60217646e-19,         &
-                       kb     = 1.3806503e-23
+                       kb     = 1.3806503e-23,          &
+                       me     = 9.10938188d-31
 
   ! non-dimensional parameters
   real(8), parameter:: x0   = 1e-4, &
                        ph0  = e / (eps0 * x0), &
-                       t0   = 1e-6
+                       t0   = 1e-6, &
+                       wp02 = t0**2 * e**2 / (eps0 * x0**3 * me), &
+                       w2   = (t0 * 14e9)**2
 
   ! case properties
   real(8), parameter:: Tg     = 300, & ! kelvin
                        p      = 2,   & ! torr
                        ninf   = p * 101325d0 / 760d0 / kb / Tg * x0**3, &
                        n_zero = 1e8 * x0**3
-  real(8) :: n_init = 1e10 * x0**3
+  real(8) :: n_init = 1e11 * x0**3
 
   integer :: rf = 0
   logical :: unif = .True., cyl = .True., rwall = .False.
@@ -74,6 +77,9 @@ contains
     if (rx - 1 < 0) west = MPI_Proc_Null
     east = ry * px + rx + 1
     if (rx + 1 >= px) east = MPI_Proc_Null
+
+    call MPI_Comm_split(comm, ry, myId, ryComm, ierr)
+    call MPI_Comm_split(comm, rx, myId, rxComm, ierr)
 
     ! Domain decomposition
     g%bx = nx / px
