@@ -14,8 +14,6 @@ contains
 
   subroutine ptcl_init(g)
     type(grid), intent(inout) :: g
-    integer :: i, j
-
     allocate( ki(g%bx+2, g%by+2, 5), ni(g%bx+2, g%by+2, 3), &
               ke(g%bx+2, g%by+2, 5), ne(g%bx+2, g%by+2, 3), &
               kt(g%bx+2, g%by+2, 5), nt(g%bx+2, g%by+2, 3), &
@@ -513,7 +511,7 @@ contains
     term_st3 = - h_ir * k_ir * ninf * ne(i,j,2) &
                - h_si * k_si * nm(i,j,2) * ne(i,j,2) &
                - h_ex * k_ex * ninf * ne(i,j,2) &
-               + ne(i,j,2) * wp02 * Em(j-1) / sqrt(w2 + nu**2)
+               + ne(i,j,2) * wp02 * Em(j) / sqrt(w2 + nu**2)
                !- h_sc * k_sc * nm(i,j,2) * ne(i,j,2)
 
     ! write(*,33) ne(i,j,2) * wp02 * (EmVal * Em(i,j))**2 / sqrt(w2 + nu**2), -dfluxt_dx - dfluxt_dy

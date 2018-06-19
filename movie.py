@@ -27,7 +27,7 @@ plt.rc('figure', titlesize=big_size)
 plt.rcParams['figure.figsize'] = (4.5, 3)
 # plt.rcParams['figure.autolayout'] = True
 
-path = 'Output/2Torr/1780V_60x50/'
+path = 'Output/10Torr/1150V_60x40/'
 # path = 'Output/'
 x = np.fromfile(path + 'meshx.dat',dtype=float) *1e3
 y = np.fromfile(path + 'meshy.dat',dtype=float) *1e3

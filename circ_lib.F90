@@ -153,7 +153,7 @@ contains
     call MPI_Allreduce(MPI_In_Place, Ida, 1, etype, MPI_Sum, comm, ierr)
     call MPI_Allreduce(MPI_In_Place, Idc, 1, etype, MPI_Sum, comm, ierr)
 
-    kv(stage) = -(Idc - Ida - (Vsrc - Vd_mi) / Res) / Cap
+    kv(stage) = -(Idc - (Vsrc - Vd_mi) / Res) / Cap
 
     if (stage == 1) then
       Vd_mi = Vd_or + g%dt * kv(1) / 3d0
@@ -173,8 +173,8 @@ contains
               + kv(4) * 4d0 + kv(5)) / 6d0
     end if
 
-    ! if (rf .ne. -1) Vd_pl = Vsrc
-    ! if (rf .ne. -1) Vd_mi = Vsrc
+    if (rf .ne. 1) Vd_pl = Vsrc
+    if (rf .ne. 1) Vd_mi = Vsrc
     i = 2
 
     if (g%ny > 1) then
@@ -218,7 +218,7 @@ contains
     Vd_pl = Vset
     Vd_mi = Vset
     Vd_or = Vset
-    Cap = 1d-10 * ph0 / e
+    Cap = 1d-11 * ph0 / e
     !Res = R0 * e / (ph0 * t0)
   end subroutine
 end module

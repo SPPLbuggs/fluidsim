@@ -27,14 +27,15 @@ path = 'Output/'
 y = np.fromfile(path + 'meshy.dat',dtype=float) * 1e3
 
 ny = max(len(y),1)
-nx = ny * 2
+nx = ny * 3
 
 temp = np.fromfile('Output/Hz.dat',dtype=float)
 nt = len(temp) / ny / nx
 Hz = temp.reshape([nt, ny, nx])
+Hz = Hz/(np.abs(Hz).max())
 
 fig = plt.figure(figsize=(8,6))
-im = plt.imshow(Hz[0,:,:], animated=True)
+im = plt.imshow(Hz[0,:,:], animated=True, vmin=-0.6, vmax=0.6)
 plt.xlabel('X')
 plt.ylabel('Y')
 tx = plt.title('Hz : time = 0')

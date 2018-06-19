@@ -38,7 +38,7 @@ module props
 
   ! case properties
   real(8), parameter:: Tg     = 300, & ! kelvin
-                       p      = 2,   & ! torr
+                       p      = 10,   & ! torr
                        ninf   = p * 101325d0 / 760d0 / kb / Tg * x0**3, &
                        n_zero = 1e8 * x0**3
   real(8) :: n_init = 1e11 * x0**3
@@ -193,7 +193,7 @@ contains
           if (rwall) then
             g%type_y(i,j) = 3
           else
-            g%type_y(i,j) = 2
+            g%type_y(i,j) = 1
           end if
         end if
 
@@ -297,6 +297,13 @@ contains
     if (ierr .ne. MPI_SUCCESS) then
       if (myId == 0) call MPI_File_Delete(path//'idc.dat', info, ierr);
       call MPI_File_Open(comm, path//'idc.dat', amode,  info, fh, ierr)
+    end if
+    call MPI_File_Close(fh, ierr)
+
+    call MPI_File_Open(comm, path//'flx.dat', amode,  info, fh, ierr)
+    if (ierr .ne. MPI_SUCCESS) then
+      if (myId == 0) call MPI_File_Delete(path//'flx.dat', info, ierr);
+      call MPI_File_Open(comm, path//'flx.dat', amode,  info, fh, ierr)
     end if
     call MPI_File_Close(fh, ierr)
 

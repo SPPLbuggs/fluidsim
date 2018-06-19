@@ -29,8 +29,8 @@ ylog = False
 cm_subsection = np.linspace(0.0, 1.0, 4)
 colors = [ mpl.cm.viridis(x) for x in cm_subsection ]
 
-# path = 'Output/2Torr/350V_60x60/'
-path = 'Output/'
+path = 'Output/10Torr/1150V_60x40/'
+# path = 'Output/'
 if len(sys.argv) > 1:
     d = sys.argv[1]
     res = sys.argv[2]

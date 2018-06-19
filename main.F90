@@ -8,9 +8,10 @@ program main
   implicit none
 
   type(grid) :: g
+  type(em_grid) :: eg
   integer :: ts = 0, ts1, ts2, nx, ny, dof, lerr
   real(8) :: l, w, ew, gap, vl, dt, t_fin, t_pr, t_sv, t_sv0, &
-             sim_start, time1, time2, EmAmpl
+             sim_start, time1, time2, EmAmp, EmFlx = 0
   character(80):: path
 
   ! Initialize PETSc and MPI
@@ -29,30 +30,37 @@ program main
   px = 1
   py = 1
   dof = 1
-  l  = 7.9e-3 / x0
-  w  = 7.9e-3 / x0
-  ew = 3.95e-3 / x0
-  gap = 2.0e-3 / x0
-  dt = 5e-6
+  l  = 1e-2 / x0 ! 7.9e-3 / x0
+  w  = 1d-2 / x0 ! 7.9e-3 / x0
+  ew = 2e-4 / x0 !1.0e-3 / x0
+  gap = 1e-3 / x0! 2.0e-3 / x0
+  dt = 5.0e-6
   t_fin = 100
   t_pr = 0d0
   t_sv = 1e-4
   t_sv0 = 1e-4
   vl = 0 / ph0
-  res = 1e6
-  EmAmpl = 5e4
+  res = 1e4
+  EmAmp = 0e0
 
   ! Read input arguments
   call read_in
 
   ! Initialize grid and arrays
-  path = 'Output/'
+  ! path = 'OutpSut/'
   call g_init(g, nx, ny, px, py, dof, l, w, ew, gap, trim(path))
   call lapl_init(g)
   call ptcl_init(g)
   call circ_init(vl)
   call sfc_init(g)
-  call em_init(g, 0, 1900) !55
+  call em_init(g, eg) !55
+
+  ! if (((abs(eg%x(i)) - 15.8d-3 / x0 / 2d0) > 0d0) &
+  !   .and. ((23.8d-3 / x0 / 2d0 - abs(eg%x(i))) > 0d0) &
+  !   .and. ((abs(eg%y(j)) - 15.8d-3 / x0 / 3d0) < 0d0)) then
+  !   eps(i,j) = -1d40
+  ! end if
+  ! call addBlock(eg, x0, y0, dx, dy, -1d40)
 
   g%t  = 0
   g%dt = dt
@@ -60,7 +68,7 @@ program main
   do
     if (g%t >= t_fin) exit
 
-    call em_run(g, ne(:,:,1), nt(:,:,1), EmAmpl)
+    ! call em_step(g, eg, ne(:,:,1), nt(:,:,1)/ne(:,:,1), EmAmp, EmFlx)
 
     ! Solve ne system
     t_m = 1e9
@@ -113,17 +121,17 @@ program main
     end if
 
     ! Print out some information
-    if ((t_pr >= 10d0) .and. (myId == 0)) then
+    if ((t_pr >= 5d0) .and. (myId == 0)) then
       call cpu_time(time2)
       ts2 = ts
       write(*,*)
       write(*,11) ts, g%t, (time2 - time1) / g%dt / float(ts2-ts1) / 60.
-      write(*,12) g%dt, t_m
+      write(*,12) g%dt, t_m, sqrt(abs(EmFlx))*ph0/x0
       write(*,15) Vd_pl * ph0, Ida * e / t0, Idc * e / t0
+      write(*,16) sqrt(maxval(ne)*wp02) / t0 / 2e9 / pi, maxval(ne)/x0**3
       t_pr = 0
       time1 = time2
       ts1 = ts
-
     else if (mod(ts,100) == 0) then
       call cpu_time(time2)
       t_pr = time2 - time1
@@ -154,8 +162,9 @@ program main
   call PetscFinalize(ierr)
 
 11 format('Timestep:', i7, '  Time:', es9.2, '  time/us:', f6.2, ' min')
-12 format('   dT:  ', es9.2, '   tm:', es9.2)
-15 format('   Vd:', f7.2, '       Ida:', es9.2, '       Idc:', es9.2)
+12 format('   dT:  ', es9.2, '   tm:', es9.2,  '   Em:', es9.2)
+15 format('   Vd:', f7.2, '     Ida:', es9.2, '       Idc:', es9.2)
+16 format('   wp:', f7.3, '      ne:', es9.2)
 9  format('Simulation finished in ', i0, ' hr ', i0, ' min')
 
 contains
@@ -315,6 +324,11 @@ contains
     call MPI_File_Open(comm, trim(path)//'dt.dat', &
         MPI_MODE_WRonly + MPI_Mode_Append,  info, fh, ierr)
     if (myId == 0) call MPI_File_Write(fh, g%dt, 1, etype, stat, ierr)
+    call MPI_File_Close(fh, ierr)
+
+    call MPI_File_Open(comm, trim(path)//'flx.dat', &
+        MPI_MODE_WRonly + MPI_Mode_Append,  info, fh, ierr)
+    if (myId == 0) call MPI_File_Write(fh, EmFlx, 1, etype, stat, ierr)
     call MPI_File_Close(fh, ierr)
   end subroutine
 end program

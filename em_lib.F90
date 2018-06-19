@@ -2,153 +2,131 @@ module em_lib
   use props
   implicit none
 
-  ! MPI Variables:
-  integer :: offx, offy
+  type :: em_grid
+    integer :: nx, ny, bx, by, &
+               offx, offy, &
+               nf, nt, fskip
+    real(8) :: dt, dx, w, np
+    real(8), allocatable :: x(:), y(:), r(:,:)
+  end type
 
-  ! Constants
-  real(8), parameter:: a = 0.99 / sqrt(2.0)
+  real(8), allocatable :: Hz(:,:), Chzh(:,:), Chze(:,:), &
+                          HzLeft(:,:,:), HzRight(:,:,:), &
+                          Ex(:,:), Cexh(:,:), Cexe(:,:), &
+                          Ey(:,:), Ceyh(:,:), Ceye(:,:), &
+                          ExTemp(:,:), EyTemp(:,:), Em(:), &
+                          Jx(:,:), Cjxj(:,:), Cjxe(:,:), &
+                          Jy(:,:), Cjyj(:,:), Cjye(:,:), &
+                          eps(:,:), sig(:,:), &
+                          Nw(:,:), Ng(:,:), &
+                          frq(:), flx(:)
+  complex(8), allocatable :: F_ey(:), F_hz(:)
 
-  integer, allocatable    :: rij(:,:), rij_em(:,:)
-  real(8), allocatable    :: Hz(:,:), Ey(:,:), Ex(:,:), &
-                             Jx(:,:), Jy(:,:), wp(:,:), eps(:,:), &
-                             lbc(:,:,:), rbc(:,:,:), tbc(:,:,:), bbc(:,:,:), &
-                             flx(:), frq(:), x(:), y(:), nu(:,:), &
-                             temp(:), ne_avg(:), nte_avg(:), &
-                             Em(:), Em_full(:), r_full(:), r_em(:)
-  complex(8), allocatable :: a_ey(:), a_hz(:)
+  integer :: t
+  real(8) :: coef0, coef1, coef2, c, fldAmp = 0
+  real(8), parameter :: a = 1d0 / sqrt(2d0), imp0=1.0
+  logical :: Finit = .True., ABCinit = .True.
 
-  integer :: nx, ny, nt, nf, fskip
-  real(8) :: dx, dt, np, wp2
-
-  public  :: flx, frq, em_init, em_run, Em
-  private :: px, py, nx, ny, nt, nf, fskip, np, pi, eps0, mu0, c0, e, kb, me, a, Hz, Ey, Ex, &
-             Jx, Jy, dx, dt, a_ey, a_hz, wp, eps, lbc, rbc, tbc, bbc, nu, em_step, x, y, rij, &
-             get_nu, wp2, Em_full, r_em, r_full, rij_em
+  public  :: em_init, em_step, Em
+  private :: updateH, updateE, updateF, updateJ, &
+             setC, src, abc, getNu, &
+             Hz, Chzh, Chze,  HzLeft, HzRight, &
+             Ex, Cexh, Cexe, &
+             Ey, Ceyh, Ceye, &
+             Jx, Cjxj, Cjxe, &
+             Jy, Cjyj, Cjye, &
+             coef0, coef1, coef2, ABCinit, &
+             c, eps, sig, a, Nw, Ng, &
+             frq, flx, F_ey, F_hz, Finit
 
 contains
-
-! *** Initialization ***
-  subroutine em_init(g, nf0, fskip0)
+  ! *** Initialization
+  subroutine em_init(g, eg)
     type(grid), intent(in) :: g
-    integer, intent(in) :: nf0, fskip0
-    real(8) :: l = 15.8d-3 * 2d0, xtemp, r, min_val, max_val
-    real(8), allocatable:: r_temp(:), r_uniq(:)
-    integer :: i, j, k, i1=1, i2=1, j1=1
+    type(em_grid), intent(inout) :: eg
+    integer :: i, j
+    real(8) :: xtemp
 
-    nx = 2 * g%ny / px
-    ny = g%ny / py
+    ! Setup domain
+    eg%nx = 3 * g%ny
+    eg%ny = g%ny
 
-    offx = rx * nx
-    offy = ry * ny
+    eg%bx = eg%nx / px
+    eg%by = eg%ny / py
 
-    allocate(Hz(nx+2, ny+2), Ex(nx+2, ny+2), Ey(nx+2, ny+2), &
-             Jx(nx+2, ny+1), Jy(nx+1, ny+2), wp(nx+2,ny+2), eps(nx+2,ny+2), &
-             lbc(3,ny+2,2), rbc(3,ny+2,2), tbc(nx+2,3,2), bbc(nx+2,3,2), &
-             x(nx+2), y(ny+2), rij(nx+2, ny+2), nu(nx+2, ny+2), &
-             ne_avg(g%ny), nte_avg(g%ny), temp(g%by), &
-             Em(g%by), r_full(g%ny), r_temp(nx*ny), r_uniq(nx*ny), &
-             rij_em(nx,ny))
+    eg%offx = rx * eg%bx
+    eg%offy = ry * eg%by
 
-    Em = 0
-    Hz = 0
-    Ex = 0
-    Ey = 0
-    Jx = 0
-    Jy = 0
-    lbc = 0
-    rbc = 0
-    tbc = 0
-    bbc = 0
+    eg%w = 2d0 * g%w
+    eg%dx = eg%w / float(eg%ny + 1)
+    eg%dt = x0 * eg%dx / c0 / sqrt(2d0)
+    c = c0 * eg%dt / eg%dx
 
-    wp = 0
-    eps = 1
-    nu = 0
+    eg%np = 1d0 / (13.622d9 * eg%dt)
+    eg%nt = 200 * int(eg%np)
+    eg%nf = 0
+    eg%fskip = 175
 
-    dx = l / 2d0 / float(py*ny+1)
-    dt = dx / c0 / sqrt(2.0)
-    np  = 1.0 / (13.49e9 * dt)
-    nt  = 20 * int(np)
-    wp2 = wp02 * dt**2 / t0**2
-
-    nf = nf0
-    fskip = fskip0
-    if (nf > 0) then
-      allocate(frq(nf), flx(nf), a_ey(nf), a_hz(nf))
-      frq = 0
-      flx = 0
-    end if
-
-    do i = 1, nx+2
-      x(i) = dx * (offx + i - 1)
+    allocate(eg%x(eg%bx+2))
+    do i = 1, eg%bx+2
+      eg%x(i) = eg%dx * (eg%offx + i - 1)
     end do
-
-    do j = 1, ny+2
-      y(j) = dx * (offy + j - 1)
-    end do
-
-    xtemp = x(nx+2)
+    xtemp = eg%x(eg%bx+2)
     call MPI_Bcast(xtemp, 1, MPI_Real8, nproc-1, comm, ierr)
-    x = x - xtemp / 2d0
-    x = x / x0
+    eg%x = eg%x - xtemp / 2d0
 
-    xtemp = y(ny+2)
+    allocate(eg%y(eg%by+2))
+    do j = 1, eg%by+2
+      eg%y(j) = eg%dx * (eg%offy + j - 1)
+    end do
+    xtemp = eg%y(eg%by+2)
     call MPI_Bcast(xtemp, 1, MPI_Real8, nproc-1, comm, ierr)
-    y = y - xtemp / 2d0
-    y = y / x0
+    eg%y = eg%y - xtemp / 2d0
 
-    call MPI_AllGather(g%r, g%by, etype, r_full, g%by, etype, rxComm, ierr)
-
-    rij = -1
-    do j = 1, ny+2
-      do i = 1, nx+2
-        r = sqrt(x(i)**2 + y(j)**2)
-        do k = 1, g%ny
-          if ((r_full(k) < r) .and. (r < g%w)) then
-            rij(i,j) = max(min(k,g%by), 2)
-          else
-            exit
-          end if
-        end do
+    allocate(eg%r(eg%bx+2, eg%by+2))
+    do j = 1, eg%by+2
+      do i = 1, eg%bx+2
+        eg%r(i,j) = sqrt(eg%x(i)**2 + eg%y(j)**2)
       end do
     end do
 
-    r_temp = 0
-    do j = 1, ny
-      do i = 1, nx
-        r_temp(i+(j-1)*nx) = sqrt((dx/x0*(i-0.5))**2 + (dx/x0*(j-0.5))**2)
-      end do
-    end do
+    ! Setup field variables
+    allocate(Hz(eg%bx+2, eg%by+2), Chzh(eg%bx+2, eg%by+2), Chze(eg%bx+2, eg%by+2), &
+             HzLeft(3, 2, eg%by+2), HzRight(3, 2, eg%by+2), &
+             Ex(eg%bx+2, eg%by+2), Cexh(eg%bx+2, eg%by+2), Cexe(eg%bx+2, eg%by+2), &
+             Ey(eg%bx+2, eg%by+2), Ceyh(eg%bx+2, eg%by+2), Ceye(eg%bx+2, eg%by+2), &
+             ExTemp(eg%bx+2, eg%by+2), EyTemp(eg%bx+2, eg%by+2), &
+             Jx(eg%bx+2, eg%by+2), Cjxj(eg%bx+2, eg%by+2), Cjxe(eg%bx+2, eg%by+2), &
+             Jy(eg%bx+2, eg%by+2), Cjyj(eg%bx+2, eg%by+2), Cjye(eg%bx+2, eg%by+2), &
+             eps(eg%bx+2, eg%by+2), sig(eg%bx+2, eg%by+2), &
+             Nw(eg%bx+2, eg%by+2), Ng(eg%bx+2, eg%by+2), Em(g%by+2))
+    Hz = 0;  HzLeft = 0; HzRight = 0
+    Ex = 0;  Ey = 0; Em = 0
+    Jx = 0;  Jy = 0
+    eps = 1; sig = 0
+    Nw = 0;  Ng = 0
 
-    min_val = minval(r_temp)-1
-    max_val = maxval(r_temp)
-    i = 0
-    do while (min_val<g%w)
-        i = i+1
-        min_val = minval(r_temp, mask=r_temp>(min_val+0.1))
-        r_uniq(i) = min_val
-    end do
-    allocate(r_em(i-1), source=r_uniq(1:i-1))
-    allocate(Em_full(i-1))
-    Em_full = 0
-    deallocate(r_uniq, r_temp)
-
-    rij_em = -1
-    do j = 1, ny
-      do i = 1, nx
-        r = sqrt(x(i+1)**2 + y(j+1)**2)
-        if (r < g%w) rij_em(i,j) = minloc((r_em-r)**2, dim=1)
-      end do
-    end do
-
-    do j = 1, ny+2
-      do i = 1, nx+2
-        if (((abs(x(i)) - 15.8d-3 / x0 / 2d0) > 0d0) &
-          .and. ((20.8d-3 / x0 / 2d0 - abs(x(i))) > 0d0) &
-          .and. ((abs(y(j)) - 15.8d-3 / x0 / 3d0) < 0d0)) then
+    do j = 1, eg%by+2
+      do i = 1, eg%bx+2
+        if (((abs(eg%x(i)) - 15.8d-3 / x0 / 2d0) > 0d0) &
+          .and. ((23.8d-3 / x0 / 2d0 - abs(eg%x(i))) > 0d0) &
+          .and. ((abs(eg%y(j)) - 15.8d-3 / x0 / 3d0) < 0d0)) then
           eps(i,j) = -1d40
         end if
       end do
     end do
+
+    call comm_real(eg%bx, eg%by, eps)
+
+    do j = 1, eg%by+2
+      do i = 1, eg%bx+2
+        Chzh(i,j) = 1d0
+        Chze(i,j) = a / imp0
+      end do
+    end do
+
+    call comm_real(eg%bx, eg%by, Chzh)
+    call comm_real(eg%bx, eg%by, Chze)
 
     call MPI_File_Open(comm, 'Output/Hz.dat', amode,  info, fh, ierr)
     if (ierr .ne. MPI_SUCCESS) then
@@ -158,209 +136,326 @@ contains
     call MPI_File_Close(fh, ierr)
   end subroutine
 
-! *** Run ***
-  subroutine em_run(g, ne, nte, ampl)
-    type(grid), intent(in) :: g
-    real(8), intent(in) :: ne(:,:), nte(:,:), ampl
-    integer :: i, j, t, k
-    real(8) :: r, r1, r0, Te, temp1, temp2
-    complex(8) :: etemp, htemp
+  subroutine setC(eg, fp, gp)
+    type(em_grid), intent(in) :: eg
+    real(8), intent(in) :: fp, gp
+    integer :: i, j
 
-    ! average ne(y,r) to ne_avg(r)
-    do j = 2, g%by+1
-      temp(j-1) = sum(ne(2:g%bx+1,j)) / float(g%bx)
-      call MPI_AllReduce(MPI_In_Place, temp(j-1), 1, etype, MPI_Sum, ryComm, ierr)
-      temp(j-1) = temp(j-1) / float(px)
-    end do
-    call MPI_AllGather(temp, g%by, etype, ne_avg, g%by, etype, rxComm, ierr)
-
-    do j = 2, g%by+1
-      temp(j-1) = sum(nte(2:g%bx+1,j)) / float(g%bx)
-      call MPI_AllReduce(MPI_In_Place, temp(j-1), 1, etype, MPI_Sum, ryComm, ierr)
-      temp(j-1) = temp(j-1) / float(px)
-    end do
-    call MPI_AllGather(temp, g%by, etype, nte_avg, g%by, etype, rxComm, ierr)
-
-    ! convert ne_avg(r) to wp(x,y)
-    do j = 2, ny+1
-      do i = 2, nx+1
-        k = rij(i,j)
-        if (k > 0) then
-          r = sqrt(x(i)**2 + y(j)**2)
-          temp1 = (ne_avg(k-1) +  (r - r_full(k-1)) * (ne_avg(k) - ne_avg(k-1)) &
-                  / (r_full(k) - r_full(k-1)))
-          temp2 = (nte_avg(k-1) +  (r - r_full(k-1)) * (nte_avg(k) - nte_avg(k-1)) &
-                  / (r_full(k) - r_full(k-1)))
-          wp(i,j) = wp2 * temp1
-          Te = temp1 / temp2
-          nu(i,j) = get_nu(Te)
+    Nw = 1d40
+    Ng = 1d40
+    do j = 1, eg%by+2
+      do i = 1, eg%bx+2
+        if (eg%r(i,j) < eg%w/2d0) then
+          Nw(i,j) = 1d0 / cos(pi * eg%r(i,j) / eg%w)**2 / (fp * eg%dt)
+          Ng(i,j) = 1d0 / cos(pi * eg%r(i,j) / eg%w)**2 / (gp * eg%dt)
         end if
       end do
     end do
 
-    call comm_real(nx, ny, wp)
-    call comm_real(nx, ny, eps)
-
-    if (nf > 0) then
-      a_ey = 0
-      a_hz = 0
-    end if
-
-    do t = 1, nt
-      call em_step(t, fskip, ampl)
-      ! if (t > nt-200) call savedat('Output/Hz.dat', Ey)
-      if (t > (nt-int(np/2d0))) then
-        do j = 2, ny+1
-          do i = 2, nx+1
-            k = rij_em(i-1,j-1)
-            if (k > 0) then
-              Em_full(k) = Em_full(k) + 0.05 * (Ey(i,j)**2 - Em_full(k))
-            end if
-          end do
-        end do
-      end if
+    do j = 1, eg%by+1
+      do i = 1, eg%bx+2
+        Cjxj(i,j) = (1d0 - 1d0 / (Ng(i,j+1) + Ng(i,j))) &
+               / (1d0 + 1d0 / (Ng(i,j+1) + Ng(i,j)))
+        Cjxe(i,j) = 8d0 * pi**2 * a / imp0 / (Nw(i,j+1) + Nw(i,j))**2 &
+               / (1d0 + 1d0 / (Ng(i,j+1) + Ng(i,j)))
+      end do
     end do
 
-    if (nf > 0) then
-      do k = 1, nf
-        frq(k) = float(k + fskip)  / (nt * dt)
-        call MPI_Reduce(a_ey(k), etemp, 1, MPI_Complex16, MPI_SUM, 0, comm, ierr)
-        call MPI_Reduce(a_hz(k), htemp, 1, MPI_Complex16, MPI_SUM, 0, comm, ierr)
-        flx(k) = 2 * RealPart(etemp * conjg(htemp)) / float(nt)
+
+    do j = 1, eg%by+2
+      do i = 1, eg%bx+1
+        Cjyj(i,j) = (1d0 - 1d0 / (Ng(i+1,j) + Ng(i,j))) &
+               / (1d0 + 1d0 / (Ng(i+1,j) + Ng(i,j)))
+        Cjye(i,j) = 8d0 * pi**2 * a / imp0 / (Nw(i+1,j) + Nw(i,j))**2 &
+               / (1d0 + 1d0 / (Ng(i+1,j) + Ng(i,j)))
+      end do
+    end do
+
+    do j = 1, eg%by+1
+      do i = 1, eg%bx+2
+        Cexh(i,j) = 2d0 * a * imp0 / (eps(i,j+1) + eps(i,j)) &
+                    / (1d0 + (sig(i,j+1) + sig(i,j)) / (eps(i,j+1) + eps(i,j)) / 2d0 &
+                    + a * imp0 * Cjxe(i,j) / (eps(i,j+1) + eps(i,j)))
+        Cexe(i,j) = (1d0 - (sig(i,j+1) + sig(i,j)) / (eps(i,j+1) + eps(i,j)) / 2d0 &
+                    - a * imp0 * Cjxe(i,j) / (eps(i,j+1) + eps(i,j))) &
+                    / (1d0 + (sig(i,j+1) + sig(i,j)) / (eps(i,j+1) + eps(i,j)) / 2d0 &
+                    + a * imp0 * Cjxe(i,j) / (eps(i,j+1) + eps(i,j)))
+      end do
+    end do
+
+    do j = 1, eg%by+2
+      do i = 1, eg%bx+1
+        Ceyh(i,j) = 2d0 * a * imp0 / (eps(i+1,j) + eps(i,j)) &
+                    / (1d0 + (sig(i+1,j) + sig(i,j)) / (eps(i+1,j) + eps(i,j)) / 2d0 &
+                    + a * imp0 * Cjye(i,j) / (eps(i+1,j) + eps(i,j)))
+        Ceye(i,j) = (1d0 - (sig(i+1,j) + sig(i,j)) / (eps(i+1,j) + eps(i,j)) / 2d0 &
+                    - a * imp0 * Cjye(i,j) / 2d0) &
+                    / (1d0 + (sig(i+1,j) + sig(i,j)) / (eps(i+1,j) + eps(i,j)) / 2d0 &
+                    + a * imp0 * Cjye(i,j) / (eps(i+1,j) + eps(i,j)))
+      end do
+    end do
+  end subroutine
+
+  subroutine addCyl(eg, x0, y0, rad, epsCyl)
+    type(em_grid), intent(in) :: eg
+    real(8), intent(in) :: x0, y0, rad, epsCyl
+    integer :: i, j
+    real(8) :: r
+
+    do j = 1, eg%by+2
+      do i = 1, eg%bx+2
+        r = sqrt((eg%x(i) - x0)**2 + (eg%y(j) - y0)**2)
+        if (r .le. rad) eps(i,j) = epsCyl
+      end do
+    end do
+  end subroutine
+
+  subroutine addBlock(eg, x0, y0, dx, dy, epsBlk)
+    type(em_grid), intent(in) :: eg
+    real(8), intent(in) :: x0, y0, dx, dy, epsBlk
+    integer :: i, j
+    real(8) :: x, y
+
+    do j = 1, eg%by+2
+      do i = 1, eg%bx+2
+        x = abs(eg%x(i) - x0)
+        y = abs(eg%y(j) - y0)
+        if ((x .le. dx) .and. (y .le. dy)) eps(i,j) = epsBlk
+      end do
+    end do
+  end subroutine
+
+  ! *** Timestepping Routine ***
+  subroutine em_step(g, eg, ne, Te, ampIn, ampOut)
+    type(grid), intent(in) :: g
+    type(em_grid), intent(inout) :: eg
+    real(8), intent(in) :: ne(:,:), Te(:,:), ampIn
+    real(8), intent(inout) :: ampOut
+    integer :: j, k, ttemp
+    real(8) :: fp, gp, temp
+    complex(8) :: etemp, htemp
+
+    fp = sqrt(ne(g%bx/2, 2) * e**2 / (eps0 * x0**3 * me)) * eg%dt
+    gp = getNu(Te(g%bx/2,2), eg%dt)
+
+    call setC(eg, fp, gp)
+
+    t = mod(t, 20*int(eg%np))
+    do ttemp = 1, max(int(g%dt * t0 / eg%dt), 1000*int(eg%np))!int(eg%np)/2)
+      t = t + 1
+      call updateE(eg)
+      call updateJ(eg)
+      call src(eg, t, ampIn)
+      call updateH(eg)
+      call abc(eg)
+      if (eg%nf > 0) call updateF(eg, t)
+      ! if (t > eg%nt-200) call savedat('Output/Hz.dat', Ey)
+      fldAmp = fldAmp + (Ey(eg%nx/2, eg%ny/2)**2 - fldAmp) / eg%np
+    end do
+
+    do j = 1, g%by+2
+      Em(j) = fldAmp * cos(pi * g%r(j) / g%w)
+    end do
+
+    if (eg%nf > 0) then
+      do k = 1, eg%nf
+        frq(k) = float(k + eg%fskip)  / (eg%nt * eg%dt)
+        call MPI_Reduce(F_ey(k), etemp, 1, MPI_Complex16, MPI_SUM, 0, comm, ierr)
+        call MPI_Reduce(F_hz(k), htemp, 1, MPI_Complex16, MPI_SUM, 0, comm, ierr)
+        flx(k) = 2 * RealPart(etemp * conjg(htemp)) / float(eg%nt)
         write(*,33) frq(k)/1d9, flx(k)
       end do
     end if
 
-    ! convert Em_full(r_em) to Em_r(r)
-    do j = 1, size(Em_full)
-      call MPI_AllReduce(MPI_In_Place, Em_full(j), 1, etype, MPI_Sum, comm, ierr)
-    end do
-    Em_full = Em_full / float(nproc)
+    temp = sum(-5d-1 * (Ey(eg%bx-2,3:eg%by) + Ey(eg%bx-1,3:eg%by)) * Hz(eg%bx-1,3:eg%by))
+    ampOut = ampOut + 0.01 * (temp - ampOut)
 
-    do j = 1, g%by
-      k = minloc((g%r(j+1) - r_em)**2, dim=1) !replace this with stored array
-      Em(j) = (Em_full(k) +  (g%r(j+1) - r_em(k)) * (Em_full(k+1) - Em_full(k)) &
-              / (r_em(k+1) - r_em(k)))
+    write(*,*) fldAmp
+
+    fp = 10d9 * eg%dt
+    gp = 1d9 * eg%dt
+
+    call setC(eg, fp, gp)
+
+    t = mod(t, 20*int(eg%np))
+    do ttemp = 1, max(int(g%dt * t0 / eg%dt), 1000*int(eg%np))!int(eg%np)/2)
+      t = t + 1
+      call updateE(eg)
+      call updateJ(eg)
+      call src(eg, t, ampIn)
+      call updateH(eg)
+      call abc(eg)
+      if (eg%nf > 0) call updateF(eg, t)
+      ! if (t > eg%nt-200) call savedat('Output/Hz.dat', Ey)
+      fldAmp = fldAmp + (Ey(eg%nx/2, eg%ny/2)**2 - fldAmp) / eg%np
     end do
 
-    ! write(*,34) Em
-    ! 34 format(10f6.3)
-    
-    33 format(2es11.3)
+    temp = sum(-5d-1 * (Ey(eg%bx-2,3:eg%by) + Ey(eg%bx-1,3:eg%by)) * Hz(eg%bx-1,3:eg%by))
+
+    write(*,*) fldAmp
+    stop
+
+
+
+    33 format(f7.3, 10es11.3)
   end subroutine
 
-! *** Timestepping Routine ***
-  subroutine em_step(t, fskip, ampl)
-    integer, intent(in) :: t, fskip
-    real(8), intent(in) :: ampl
-    integer :: i, j, k, j1, j2
-    real(8) :: arg, md = 1
-    complex :: ii = (0,1)
-    ! .H0 |E0 .H1 |E1 .H2 |E2 ... |En-2 .Hn-2 |En-1 .Hn-1 |En .Hn+1
-    ! H ranges 0 -> n+1, with n values and 2 boundary conditions
-    ! E ranges from 0 -> n for n+1 values and no boundary conditions
+  ! *** Update Hz Field ***
+  subroutine updateH(eg)
+    type(em_grid), intent(in) :: eg
+    integer :: i, j
 
-    ! Ex and Ey Update (whole domain):
-    do i = 1, nx+1
-        Ey(i,:) = Ey(i,:) - 2. * a * (Hz(i+1,:) - Hz(i,:) - Jy(i,:)) &
-                / (eps(i+1,:) + eps(i,:))
-    end do
-    do j = 1, ny+1
-        Ex(:,j) = Ex(:,j) + 2. * a * (Hz(:,j+1) - Hz(:,j) + Jx(:,j)) &
-                / (eps(:,j+1) + eps(:,j))
-    end do
-
-    ! Hz wavelet source:
-    arg = pi**2 * (float(t) / np - md)**2
-    j1 = 1
-    j2 = ny+2
-    if (ry == 0) j1 = 5
-    if (ry == py-1) j2 = ny-3
-    if (nf == 0) then
-      Hz(4,j1:j2) = Hz(4,j1:j2) + ampl * sin(2d0 * pi * float(t) / np)
-    else
-      if (rx == 0) Hz(4,j1:j2) = Hz(4,j1:j2) + ampl * (1d0 - 2d0 * arg) * exp(-arg)
-    end if
-
-    ! Hz update (whole domain):
-    do j = 2, ny+1
-      do i = 2, nx+1
-        Hz(i,j) = Hz(i,j) + a * (Ex(i,j) - Ex(i,j-1) &
-                                - Ey(i,j) + Ey(i-1,j))
+    do j = 2, eg%by+1
+      do i = 2, eg%bx+1
+        Hz(i,j) = Chzh(i,j) * Hz(i,j) &
+                + Chze(i,j) * ((Ex(i,j) - Ex(i,j-1)) - (Ey(i,j) - Ey(i-1,j)))
       end do
     end do
 
-    ! ABC on Hz:
-    ! - top -
-    if ((ry == 0) .and. (.False.)) then
-      Hz(:,1) = -1. / (a + 1./a + 2.) * ((a + 1./a - 2.) * (Hz(:,3) + tbc(:,1,2)) &
-                +2. * (a - 1./a) * (tbc(:,1,1) + tbc(:,3,1) - Hz(:,2) - tbc(:,2,2)) &
-                -4. * (a + 1./a) * tbc(:,2,1)) - tbc(:,3,2)
-      tbc(:,:,2) = tbc(:,:,1)
-      tbc(:,:,1) = Hz(:,1:3)
+    call comm_real(eg%bx, eg%by, Hz)
+  end subroutine
+
+  ! *** Update Ex and Ey Fields ***
+  subroutine updateE(eg)
+    type(em_grid), intent(in) :: eg
+    integer :: i, j
+
+    ExTemp = Ex
+    EyTemp = Ey
+
+    do j = 1, eg%by+1
+      do i = 1, eg%bx+2
+        Ex(i,j) = Cexe(i,j) * Ex(i,j) + Cexh(i,j) * (Hz(i,j+1) - Hz(i,j) &
+                  - 5d-1 * (1d0 + Cjxj(i,j)) * Jx(i,j))
+      end do
+    end do
+
+    do j = 1, eg%by+2
+      do i = 1, eg%bx+1
+        Ey(i,j) = Ceye(i,j) * Ey(i,j) - Ceyh(i,j) * (Hz(i+1,j) - Hz(i,j) &
+                  + 5d-1 * (1d0 + Cjyj(i,j)) * Jy(i,j))
+      end do
+    end do
+  end subroutine
+
+  ! *** Update Jx and Jy Currents ***
+  subroutine updateJ(eg)
+    type(em_grid), intent(in) :: eg
+    integer :: i, j
+
+    do j = 1, eg%by+1
+      do i = 1, eg%bx+2
+        Jx(i,j) = Cjxj(i,j) * Jx(i,j) + Cjxe(i,j) * (Ex(i,j) + ExTemp(i,j))
+      end do
+    end do
+
+    do j = 1, eg%by+2
+      do i = 1, eg%bx+1
+        Jy(i,j) = Cjyj(i,j) * Jy(i,j) + Cjye(i,j) * (Ey(i,j) + EyTemp(i,j))
+      end do
+    end do
+  end subroutine
+
+  ! *** Apply Sources ***
+  subroutine src(eg, t, amp)
+    type(em_grid), intent(in) :: eg
+    integer, intent(in) :: t
+    real(8), intent(in) :: amp
+    integer :: j1, j2
+    real(8) :: arg, md = 1d0
+
+    ! Hz wavelet source:
+    arg = pi**2 * (float(t) / eg%np - md)**2
+    j1 = 1
+    j2 = eg%by+2
+    if (ry == 0) j1 = 5
+    if (ry == py-1) j2 = eg%by-3
+    if (eg%nf == 0) then
+      Hz(4,j1:j2) = Hz(4,j1:j2) + amp * sin(2d0 * pi * float(t) / eg%np)
+    else
+      if (rx == 0) Hz(4,j1:j2) = Hz(4,j1:j2) + amp * (1d0 - 2d0 * arg) * exp(-arg)
     end if
-    ! - bottom -
-    if ((ry == py-1) .and. (.False.)) then
-      Hz(:,ny+2) = -1. / (a + 1./a + 2.) * ((a + 1./a - 2.) * (Hz(:,ny) + bbc(:,3,2)) &
-                   +2. * (a - 1./a) * (bbc(:,3,1) + bbc(:,1,1) - Hz(:,ny+1) - bbc(:,2,2)) &
-                   -4. * (a + 1./a) * bbc(:,2,1)) - bbc(:,1,2)
-      bbc(:,:,2) = bbc(:,:,1)
-      bbc(:,:,1) = Hz(:,ny:ny+2)
+  end subroutine
+
+  ! *** Apply Absorbing Boundary Conditions ***
+  subroutine abc(eg)
+    type(em_grid), intent(in) :: eg
+    real(8) :: temp1, temp2
+    integer :: i, j
+
+    if (ABCinit) then
+      temp1 = sqrt(Cexh(1,1) * Chze(1,1))
+      temp2 = 1d0 / temp1 + 2d0 + temp1
+
+      coef0 = -(1d0 / temp1 - 2d0 + temp1) / temp2
+      coef1 = -2d0 * (temp1 - 1d0 / temp1) / temp2
+      coef2 = 4d0 * (temp1 + 1d0 / temp1) / temp2
+
+      ABCinit = .False.
     end if
-    ! - left -
+
+    ! ABC on left side
     if (rx == 0) then
-      Hz(1,:) = -1. / (a + 1./a + 2.) * ((a + 1./a - 2.) * (Hz(3,:) + lbc(1,:,2)) &
-                +2. * (a - 1./a) * (lbc(1,:,1) + lbc(3,:,1) - Hz(2,:) - lbc(2,:,2)) &
-                -4. * (a + 1./a) * lbc(2,:,1)) - lbc(3,:,2)
-      lbc(:,:,2) = lbc(:,:,1)
-      lbc(:,:,1) = Hz(1:3,:)
-    end if
-    ! - right -
-    if (rx == px-1) then
-      Hz(nx+2,:) = -1. / (a + 1./a + 2.) * ((a + 1./a - 2.) * (Hz(nx,:) + rbc(3,:,2)) &
-                   +2. * (a - 1./a) * (rbc(3,:,1) + rbc(1,:,1) - Hz(nx+1,:) - rbc(2,:,2)) &
-                   -4. * (a + 1./a) * rbc(2,:,1)) - rbc(1,:,2)
-      rbc(:,:,2) = rbc(:,:,1)
-      rbc(:,:,1) = Hz(nx:nx+2,:)
-    end if
-
-    ! Perfectly conducting (E = 0) boundaryies:
-    ! x-dir
-    !Hz(1,:) = Hz(1,:) - a * Ey(1,:)
-    !Hz(nx,:) = Hz(nx,:) + a * Ey(nx-1,:)
-
-    ! y-dir
-    !Hz(:,1) = Hz(:,1) + a * Ex(:,1)
-    !Hz(:,ny) = Hz(:,ny) - a * Ex(:,ny-1)
-
-    ! Jx and Jy Update (whole domain):
-    do i = 1, nx+1
-      Jy(i,:) = (Jy(i,:) - 0.5 * a * (wp(i+1,:) + wp(i,:)) * Ey(i,:)) &
-                * (1-nu(i,:))/(1+nu(i,:))
-    end do
-    do j = 1, ny+1
-      Jx(:,j) = (Jx(:,j) - 0.5 * a * (wp(:,j+1) + wp(:,j)) * Ex(:,j)) &
-                * (1-nu(:,j))/(1+nu(:,j))
-    end do
-
-    call comm_real(nx, ny, Hz)
-
-    ! Update Fourier coefficients
-    if (nf > 0) then
-      do k = 1, nf
-        do j = 2, ny+1
-          a_ey(k) = a_ey(k) + 0.5 * (Ey(nx, j) + Ey(nx+1, j)) &
-                      * exp( -ii * (k+fskip) * 2 * pi * t / float(nt))
-          a_hz(k) = a_hz(k) + Hz(nx+1, j) &
-                      * exp( -ii * (k+fskip) * 2 * pi * t / float(nt))
+      do j = 2, eg%by+1
+        Hz(1, j) = coef0 * (Hz(3,j) + HzLeft(1,2,j)) &
+                 + coef1 * (HzLeft(1,1,j) + HzLeft(3,1,j) &
+                          - Hz(2,j) - HzLeft(2,2,j)) &
+                 + coef2 * HzLeft(2,1,j) - HzLeft(3,2,j)
+        ! Save old fields
+        do i = 1, 3
+          HzLeft(i,2,j) = HzLeft(i,1,j)
+          HzLeft(i,1,j) = Hz(i,j)
         end do
       end do
     end if
+
+    ! ABC on right side
+    if (rx == px - 1) then
+      do j = 2, eg%by+1
+        Hz(eg%bx+2, j) = coef0 * (Hz(eg%bx,j) + HzRight(1,2,j)) &
+                 + coef1 * (HzRight(1,1,j) + HzRight(3,1,j) &
+                          - Hz(eg%bx+1,j) - HzRight(2,2,j)) &
+                 + coef2 * HzRight(2,1,j) - HzRight(3,2,j)
+        ! Save old fields
+        do i = 1, 3
+          HzRight(i,2,j) = HzRight(i,1,j)
+          HzRight(i,1,j) = Hz(eg%bx+3-i,j)
+        end do
+      end do
+    end if
+
+    call comm_real(eg%bx, eg%by, Hz)
   end subroutine
 
-  function get_nu(T)
-    real(8):: get_nu
-    real(8), intent(in):: T
+  ! *** Update Fourier Components ***
+  subroutine updateF(eg, t)
+    type(em_grid), intent(in) :: eg
+    integer, intent(in) :: t
+    integer :: k, j
+    complex :: ii = (0,1)
+
+    if (Finit) then
+      allocate(frq(eg%nf), flx(eg%nf), F_ey(eg%nf), F_hz(eg%nf))
+      frq = 0
+      flx = 0
+      F_ey = 0
+      F_hz = 0
+      Finit = .False.
+    end if
+
+    do k = 1, eg%nf
+      do j = 3, eg%by
+        F_ey(k) = F_ey(k) + 5d-1 * (Ey(eg%bx-2, j) + Ey(eg%bx-1, j)) &
+                * exp( -ii * (k+eg%fskip) * 2d0 * pi * t / float(eg%nt))
+        F_hz(k) = F_hz(k) + Hz(eg%bx-1, j) &
+                * exp( -ii * (k+eg%fskip) * 2d0 * pi * t / float(eg%nt))
+      end do
+    end do
+  end subroutine
+
+  function getNu(T,dt)
+    real(8):: getNu
+    real(8), intent(in):: T, dt
     real(8):: x, &
               a = -32.275912575,      &
               b =   1.45173283977,    &
@@ -374,8 +469,8 @@ contains
 
     x = log(max(2.34d-1, min(1.57d2, T * ph0)))
 
-    get_nu = exp(a + b*x + c*x**2. + d*x**3. + f*x**4. + g*x**5. &
-                 + h*x**6. + i*x**7 + j*x**8.) / x0**3 * ninf * dt
+    getNu = exp(a + b*x + c*x**2. + d*x**3. + f*x**4. + g*x**5. &
+                + h*x**6. + i*x**7 + j*x**8.) / x0**3 * ninf * dt
     return
-  end function get_nu
+  end function getNu
 end module
